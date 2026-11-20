@@ -25,6 +25,17 @@ Electron desktop app for running coding agents in isolated Git worktrees. Deskto
 
 When committing, use conventional commit messages, such as `fix(terminal): restore focus`. Git hooks enforce the format and run `lint-staged`, `npm run check`, and a lockfile check on commit; pushing runs `check` and `npm test`. Changes to `package.json` must include the corresponding `package-lock.json` update.
 
+## Branching and merging
+
+- `main` is the production branch.
+- Create every feature branch from `main` by default.
+- Merging into `main` requires an approved merge request (MR/PR); do not push directly to `main`.
+
+## GitHub access
+
+- For GitHub CLI/API access in this project, authenticate with the PAT in the `PARALLEL_CODE_GITHUB_PAT` environment variable: `GH_TOKEN="$PARALLEL_CODE_GITHUB_PAT" gh ...`.
+- Never write tokens or other credentials into tracked files.
+
 ## Architecture and conventions
 
 - Use SolidJS function components, signals, and stores. Preserve reactive property access and clean up subscriptions, timers, and terminal resources when their owner is disposed. The component convention does not prohibit utility classes.

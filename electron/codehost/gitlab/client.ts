@@ -87,6 +87,26 @@ export function mapGitLabResponseError(status: number, body: unknown): CodeHostE
   }
 }
 
+/**
+ * undici reports a failed connect as a bare "fetch failed"; the TLS, DNS or
+ * timeout cause lives on `cause`, and is the part worth showing.
+ */
+function fetchCause(err: unknown): string {
+  const cause = err instanceof Error ? (err as { cause?: unknown }).cause : undefined;
+  if (!cause) return '';
+  const aggregated = (cause as { errors?: unknown }).errors;
+  if (Array.isArray(aggregated) && aggregated.length > 0) {
+    return aggregated.map(fetchCause).filter(Boolean).join('; ');
+  }
+  if (cause instanceof Error) {
+    const code = (cause as { code?: unknown }).code;
+    return typeof code === 'string' && !cause.message.includes(code)
+      ? `${cause.message} (${code})`
+      : cause.message;
+  }
+  return String(cause);
+}
+
 export interface GitLabResponse<T> {
   data: T;
   /** `X-Next-Page` when GitLab has another page; null on the last page. */
@@ -115,7 +135,12 @@ export async function gitlabRequest<T>(
     if (err instanceof CodeHostError) throw err;
     const host = new URL(target.baseUrl).host;
     const message = err instanceof Error ? err.message : String(err);
-    throw new CodeHostError('network', `Could not reach ${host}: ${message}`);
+    const cause = fetchCause(err);
+    const detail = cause && cause !== message ? ` — ${cause}` : '';
+    const hint = /certificate|self.signed|verify/i.test(cause)
+      ? ' This instance uses a certificate authority this system does not trust; set its CA bundle in Settings → Code hosts.'
+      : '';
+    throw new CodeHostError('network', `Could not reach ${host}: ${message}${detail}.${hint}`);
   }
   const text = await response.text();
   let body: unknown = null;

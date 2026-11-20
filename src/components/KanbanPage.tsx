@@ -1216,11 +1216,11 @@ function KanbanBoardView(props: { project: Project; agentPane: AgentPaneState; c
             }}
           >
             <div class="kanban-popover-head">
-              <strong>Add from GitHub</strong>
+              <strong>Add issues</strong>
               <button
                 type="button"
                 class="kanban-icon"
-                aria-label="Close Add from GitHub"
+                aria-label="Close Add issues"
                 onClick={() => closePopovers()}
               >
                 <CloseIcon size={12} />
@@ -1228,7 +1228,7 @@ function KanbanBoardView(props: { project: Project; agentPane: AgentPaneState; c
             </div>
             <small>
               Each pick adds a card to {firstColumnTitle() || 'the first column'}. The issue text
-              stays on GitHub; a task started from the card reads it there.
+              stays on the code host; a task started from the card reads it there.
             </small>
             <GitHubItemPicker
               projectRoot={root}

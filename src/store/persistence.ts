@@ -1,5 +1,7 @@
 import { sanitizeWorktreeIncludes, sanitizeWorktreeScript } from '../lib/worktree-includes';
 import { parseCompletionRecord } from '../../electron/shared/completion-report';
+import { parseIssueUrl } from '../../electron/shared/codehost-refs';
+import type { CodeHostIssueRef } from '../../electron/shared/codehost-types';
 import { parseCloseSuggestion } from '../../electron/shared/close-suggestion';
 import { persistedCheckSuite, restoredCheckSuite } from '../lib/check-suite-storage';
 import { appFactCard, defaultCards } from '../lib/app-facts';
@@ -383,6 +385,15 @@ function restoreSuperProductivityLink(value: unknown): SuperProductivityLink | u
   };
 }
 
+/** The persisted link is rebuilt from its URL, so a renamed field or bad row drops cleanly. */
+function restoreIssueLink(value: unknown): CodeHostIssueRef | undefined {
+  if (typeof value !== 'object' || value === null) return undefined;
+  const { url } = value as Record<string, unknown>;
+  if (typeof url !== 'string') return undefined;
+  const ref = parseIssueUrl(url);
+  return ref?.kind === 'issue' ? ref : undefined;
+}
+
 function validBranch(value: unknown, exclude?: string): string | undefined {
   return typeof value === 'string' && value.length > 0 && value !== exclude ? value : undefined;
 }
@@ -463,6 +474,7 @@ function toPersistedTask(task: Task, agentDefs: AgentDef[], collapsed?: boolean)
     dockerSource: task.dockerSource,
     dockerImage: task.dockerImage,
     githubUrl: task.githubUrl,
+    issue: task.issue,
     prUrl: task.prUrl,
     superProductivity: task.superProductivity,
     savedInitialPrompt: task.savedInitialPrompt,
@@ -1360,6 +1372,7 @@ export async function loadState(): Promise<void> {
               : undefined,
           dockerImage: typeof pt.dockerImage === 'string' ? pt.dockerImage : undefined,
           githubUrl: pt.githubUrl,
+          issue: restoreIssueLink(pt.issue),
           prUrl: pt.prUrl,
           superProductivity: restoreSuperProductivityLink(pt.superProductivity),
           savedInitialPrompt: pt.savedInitialPrompt,
@@ -1515,6 +1528,7 @@ export async function loadState(): Promise<void> {
               : undefined,
           dockerImage: typeof pt.dockerImage === 'string' ? pt.dockerImage : undefined,
           githubUrl: pt.githubUrl,
+          issue: restoreIssueLink(pt.issue),
           prUrl: pt.prUrl,
           superProductivity: restoreSuperProductivityLink(pt.superProductivity),
           savedInitialPrompt: pt.savedInitialPrompt,

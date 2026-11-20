@@ -217,6 +217,7 @@ import {
 import { registerDocumentHandlers } from '../documents/register.js';
 import { registerSuperProductivityHandlers } from '../super-productivity/register.js';
 import { registerGitHubHandlers } from '../github/register.js';
+import { registerCodeHostHandlers } from '../codehost/register.js';
 import { listSessionsForCwd } from '../sessions/scan.js';
 import { validateBranchName as sharedValidateBranchName, validateUUID } from '../mcp/validation.js';
 import { debug as logDebug, warn as logWarn, errMessage } from '../log.js';
@@ -1722,6 +1723,7 @@ export function registerAllHandlers(win: BrowserWindow): void {
   registerDocumentHandlers(win);
   registerSuperProductivityHandlers();
   registerGitHubHandlers();
+  registerCodeHostHandlers();
 
   // --- File links ---
   ipcMain.handle(IPC.OpenPath, (_e, args) => {

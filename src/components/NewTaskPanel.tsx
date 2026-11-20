@@ -80,7 +80,7 @@ import {
 import { sessionAgentForCommand } from '../../electron/shared/session-record';
 import { buildIssuePrompt, buildPrTaskPrompt, workItemTaskName } from '../lib/github-prompts';
 import { getGitHubIssue, getPullRequestDetails, readGitHubIssue } from '../store/github';
-import { linkTaskToIssueReference } from '../store/github-issue-link';
+import { linkTaskToIssueReference } from '../store/issue-link';
 import { GitHubItemPicker } from './GitHubItemPicker';
 import {
   createSymlinkCandidateState,

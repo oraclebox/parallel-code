@@ -580,7 +580,8 @@ it('checks out a picked PR while keeping the text the user typed', async () => {
   };
   const originalInvoke = vi.mocked(invoke).getMockImplementation();
   vi.mocked(invoke).mockImplementation((channel, args) => {
-    if (channel === IPC.ListGitHubWorkItems) return Promise.resolve([pr]);
+    if (channel === IPC.ListGitHubWorkItems || channel === IPC.ListCodehostWorkItems)
+      return Promise.resolve([pr]);
     if (channel === IPC.CreatePrTask)
       return Promise.resolve({
         id: 'pr-task',
@@ -644,7 +645,8 @@ it('offers a picked PR again when its checkout fails', async () => {
   };
   const originalInvoke = vi.mocked(invoke).getMockImplementation();
   vi.mocked(invoke).mockImplementation((channel, args) => {
-    if (channel === IPC.ListGitHubWorkItems) return Promise.resolve([pr]);
+    if (channel === IPC.ListGitHubWorkItems || channel === IPC.ListCodehostWorkItems)
+      return Promise.resolve([pr]);
     if (channel === IPC.CreatePrTask) return Promise.reject(new Error('PR fetch failed'));
     return Promise.resolve(originalInvoke?.(channel, args));
   });
@@ -1440,7 +1442,7 @@ it('offers no cloud session browse once a PR is checked out', async () => {
   };
   const originalInvoke = vi.mocked(invoke).getMockImplementation();
   vi.mocked(invoke).mockImplementation((channel, args) =>
-    channel === IPC.ListGitHubWorkItems
+    channel === IPC.ListGitHubWorkItems || channel === IPC.ListCodehostWorkItems
       ? Promise.resolve([pr])
       : Promise.resolve(originalInvoke?.(channel, args)),
   );

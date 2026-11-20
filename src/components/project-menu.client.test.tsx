@@ -23,7 +23,7 @@ it('offers a new task, the project views, its folder, settings and removal for a
   expect(labels(code)).toEqual([
     'New task',
     'Plan board',
-    'GitHub issues',
+    'Issues',
     'Show in file manager',
     'Settings…',
     'Remove project…',
@@ -46,7 +46,7 @@ it('keeps only settings and removal when the folder is missing', () => {
 it('opens the chosen view and dialogs', () => {
   const items = projectMenuItems(code, false, dialogs);
   const run = (label: string) => items.find((item) => item.label === label)?.run?.();
-  run('GitHub issues');
+  run('Issues');
   expect(store.githubIssuesProjectId).toBe('code');
   run('Plan board');
   expect(store.kanbanProjectId).toBe('code');

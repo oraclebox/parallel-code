@@ -12,7 +12,7 @@ import { listAgentCards, publishCardValues } from './card-publish';
 import { publishAgentPrDraft } from './pr-draft';
 import { publishFinishItems } from './finish-items';
 import { publishGitHubList } from './github-lists';
-import { linkTaskToIssueReference } from './github-issue-link';
+import { linkTaskToIssueReference } from './issue-link';
 import { getTaskMindMap, updateTaskMindMapFromAgent } from './canvas';
 import { openCanvasViewFromAgent } from './canvas-agent';
 import { getTaskReasoning, updateTaskReasoningFromAgent } from './reasoning';

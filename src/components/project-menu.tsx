@@ -52,7 +52,7 @@ function viewItems(project: Project): MoreMenuItem[] {
       run: () => withViewTransition(() => openKanban(project.id)),
     },
     {
-      label: 'GitHub issues',
+      label: 'Issues',
       icon: <GitHubIcon size={14} />,
       run: () => openGitHubIssues(project.id),
     },

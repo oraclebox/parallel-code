@@ -82,6 +82,7 @@ When committing, use conventional commit messages, such as `fix(terminal): resto
 - `electron/mcp/`: MCP server and subtask coordinator; `electron/agent-hooks/`: agent lifecycle hooks.
 - `src/remote/`, `electron/remote/`: phone UI and its server.
 - `src/documents/`, `electron/documents/`: document workspaces; see `docs/document-workspaces.md`.
+- `docs/superpowers/specs/` and `docs/superpowers/plans/`: design docs and implementation plans. If an issue names one that is missing from your branch, find its commit with `git log --all --oneline -- docs/superpowers` and cherry-pick it before implementing.
 - `docs/browser-preview.md`: native browser architecture, limitations, and verification.
 - `docs/market/`: competitor scorecard, refreshed monthly by a scheduled session; the README there holds the target and the method.
 - `docs/architecture-overview.html`: broader architecture overview. New files under `docs/` are ignored unless explicitly included in `.gitignore`.

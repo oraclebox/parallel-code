@@ -1,10 +1,21 @@
 #!/bin/sh
 unset $(git rev-parse --local-env-vars)
-npm run check
+
+# Git calls this hook for every push, including an up-to-date branch and a
+# branch deletion. Neither has code to check, and the suite costs ~30s.
+pending=false
+while read -r local_ref local_sha remote_ref remote_sha; do
+  case "$local_sha" in
+    0000000000000000000000000000000000000000) continue ;;
+  esac
+  [ "$local_sha" = "$remote_sha" ] || pending=true
+done
+$pending || { echo "Nothing to push; skipping checks."; exit 0; }
+
+npm run check || exit 1
 
 echo "Running tests before push..."
-npm test
-if [ $? -ne 0 ]; then
+if ! npm test; then
   echo ""
   echo "Tests failed. Fix failing tests before pushing."
   echo "Run 'npm test' to see details."

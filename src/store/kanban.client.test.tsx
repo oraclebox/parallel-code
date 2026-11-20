@@ -434,6 +434,18 @@ describe('GitHub issues on the board', () => {
     expect(startKanbanCardTask('p1', board, { column: 0, card: 0 })).toBe(true);
     expect(store.newTaskPrefillPrompt).toMatchObject({ githubUrl: issue.url, name: 'Crash' });
   });
+
+  it('links a GitLab issue card through the generic issue field', () => {
+    const url = 'https://gitlab.example.com/team/app/-/issues/9';
+    const board = parseKanban(`## Todo\n\n- [ ] Sync\n  issue: ${url}\n`);
+    expect(startKanbanCardTask('p1', board, { column: 0, card: 0 })).toBe(true);
+    expect(store.newTaskPrefillPrompt).toMatchObject({
+      githubUrl: null,
+      issue: { hostKind: 'gitlab', host: 'gitlab.example.com', projectPath: 'team/app', iid: 9 },
+      name: 'Sync',
+    });
+    setStore('showNewTaskPanel', false);
+  });
 });
 
 describe('project pages', () => {

@@ -53,6 +53,21 @@ describe('buildIssuePrompt', () => {
     expect(prompt.endsWith('```text\nSteps:\n1. save\n```')).toBe(true);
   });
 
+  it('names a GitLab issue and attributes its body to GitLab', () => {
+    const prompt = buildIssuePrompt(
+      {
+        number: 9,
+        title: 'Sync docs',
+        url: 'https://gitlab.example.com/team/app/-/issues/9',
+        body: 'Docs drifted.',
+      },
+      'GitLab',
+    );
+    expect(prompt).toMatch(/^Resolve GitLab issue #9: Sync docs/);
+    expect(prompt).toContain('content from GitLab');
+    expect(prompt).not.toContain('GitHub');
+  });
+
   it('keeps a body that imitates the prompt inside its fence', () => {
     const prompt = buildIssuePrompt({
       number: 3,

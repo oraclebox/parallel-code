@@ -3,6 +3,7 @@ import { batch, createEffect, createRoot, on } from 'solid-js';
 import { IPC } from '../../electron/ipc/channels';
 import { invoke } from '../lib/ipc';
 import { cleanHandoffText } from '../lib/agent-handoff';
+import type { CodeHostIssueRef } from '../../electron/shared/codehost-types';
 import { errMessage, warn as logWarn } from '../lib/log';
 import {
   DEFAULT_KANBAN_MARKDOWN,
@@ -11,7 +12,6 @@ import {
   findCardByBranch,
   findCardByIssue,
   isArchiveColumn,
-  parseGitHubIssueUrl,
   buildKanbanClusterPrompt,
   buildKanbanPlanPrompt,
   buildKanbanTaskPrompt,
@@ -22,6 +22,7 @@ import {
   type KanbanBoard,
   type KanbanCardRef,
 } from '../lib/kanban';
+import { parseIssueUrl } from '../../electron/shared/codehost-refs';
 import { setStore, store } from './core';
 import { ensureProjectAgentTask } from './github-agent';
 import { setPrefillPrompt } from './tasks';
@@ -130,14 +131,21 @@ export function startKanbanCardTask(
     projectId,
     name: cleanHandoffText(card.title),
     prompt: buildKanbanTaskPrompt(board, ref),
-    // A card tracking an issue links its task to it, as the GitHub page does. A
+    // A card tracking an issue links its task to it, as the issues page does. A
     // pull request is not linked: the task works on a fresh branch, not that PR.
-    ...(parseGitHubIssueUrl(card.issue)?.kind === 'issue' ? { githubUrl: card.issue } : {}),
+    // GitHub links use githubUrl; a GitLab issue needs the generic field.
+    ...linkedIssuePrefill(card.issue),
     kanban: { projectId, title: card.title, column: column.title, ref: { ...ref } },
   });
   // The draft opens beside the plan, which stays.
   toggleNewTaskPanel(true);
   return true;
+}
+
+function linkedIssuePrefill(url: string): { githubUrl?: string | null; issue?: CodeHostIssueRef } {
+  const ref = parseIssueUrl(url);
+  if (ref?.kind !== 'issue') return {};
+  return ref.hostKind === 'github' ? { githubUrl: url } : { githubUrl: null, issue: ref };
 }
 
 /**

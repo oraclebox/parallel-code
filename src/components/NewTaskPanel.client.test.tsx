@@ -600,7 +600,7 @@ it('checks out a picked PR while keeping the text the user typed', async () => {
   prompt.dispatchEvent(new Event('input', { bubbles: true }));
 
   const pickPr = async () => {
-    const open = [...host.querySelectorAll('button')].find((b) => b.textContent === 'From GitHub…');
+    const open = [...host.querySelectorAll('button')].find((b) => b.textContent === 'From issues…');
     open?.click();
     await vi.waitFor(() => expect(host.querySelector('.github-item-option')).not.toBeNull());
     host.querySelector<HTMLButtonElement>('.github-item-option')?.click();
@@ -652,7 +652,7 @@ it('offers a picked PR again when its checkout fails', async () => {
   });
   const submit = host.querySelector<HTMLButtonElement>('button[type="submit"]');
   await vi.waitFor(() => expect(submit?.disabled).toBe(false));
-  [...host.querySelectorAll('button')].find((b) => b.textContent === 'From GitHub…')?.click();
+  [...host.querySelectorAll('button')].find((b) => b.textContent === 'From issues…')?.click();
   await vi.waitFor(() => expect(host.querySelector('.github-item-option')).not.toBeNull());
   host.querySelector<HTMLButtonElement>('.github-item-option')?.click();
   host
@@ -715,7 +715,7 @@ it('preserves the browser issue link when the user rewrites the task prompt', as
   if (!prompt) throw new Error('Missing prompt editor');
   prompt.value = 'My customized plan without a URL';
   prompt.dispatchEvent(new Event('input', { bubbles: true }));
-  expect(host.textContent).not.toContain('From GitHub…');
+  expect(host.textContent).not.toContain('From issues…');
   host
     .querySelector('form')
     ?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
@@ -1448,9 +1448,48 @@ it('offers no cloud session browse once a PR is checked out', async () => {
   );
   const buttonTexts = () => [...host.querySelectorAll('button')].map((b) => b.textContent);
   await vi.waitFor(() => expect(buttonTexts()).toContain('Teleport from cloud'));
-  [...host.querySelectorAll('button')].find((b) => b.textContent === 'From GitHub…')?.click();
+  [...host.querySelectorAll('button')].find((b) => b.textContent === 'From issues…')?.click();
   await vi.waitFor(() => expect(host.querySelector('.github-item-option')).not.toBeNull());
   host.querySelector<HTMLButtonElement>('.github-item-option')?.click();
   await vi.waitFor(() => expect(host.textContent).toContain('Checks out PR #7'));
   expect(buttonTexts()).not.toContain('Teleport from cloud');
+});
+
+it('loads a picked GitLab issue body through the code host', async () => {
+  const url = 'https://gitlab.example.com/team/app/-/issues/41';
+  const item = {
+    kind: 'issue',
+    hostKind: 'gitlab',
+    number: 41,
+    title: 'Sync docs',
+    url,
+    author: 'dev',
+    updatedAt: '2026-10-01T00:00:00Z',
+    labels: [],
+  };
+  const originalInvoke = vi.mocked(invoke).getMockImplementation();
+  vi.mocked(invoke).mockImplementation((channel, args) => {
+    if (channel === IPC.ListCodehostWorkItems) return Promise.resolve([item]);
+    if (channel === IPC.ReadCodehostIssue) {
+      return Promise.resolve({
+        ...item,
+        iid: 41,
+        host: 'gitlab.example.com',
+        projectPath: 'team/app',
+        description: 'Docs drifted.',
+        state: 'open',
+      });
+    }
+    return Promise.resolve(originalInvoke?.(channel, args));
+  });
+  const buttonTexts = () => [...host.querySelectorAll('button')].map((b) => b.textContent);
+  await vi.waitFor(() => expect(buttonTexts()).toContain('From issues…'));
+  [...host.querySelectorAll('button')].find((b) => b.textContent === 'From issues…')?.click();
+  await vi.waitFor(() => expect(host.querySelector('.github-item-option')).not.toBeNull());
+  host.querySelector<HTMLButtonElement>('.github-item-option')?.click();
+  await vi.waitFor(() => {
+    const prompt = host.querySelector('textarea')?.value ?? '';
+    expect(prompt).toContain('Resolve GitLab issue #41: Sync docs');
+    expect(prompt).toContain('Docs drifted.');
+  });
 });

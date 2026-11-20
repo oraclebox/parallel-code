@@ -519,6 +519,28 @@ describe('GitHub issues', () => {
     expect(parseGitHubIssueUrl('https://evil.example/acme/app/issues/1')).toBeNull();
   });
 
+  it('adds and finds a GitLab issue, keeping hosts and projects apart', () => {
+    const gitlab = 'https://gitlab.example.com/team/app/-/issues/9';
+    const board = addIssueCard(parseKanban(DEFAULT_KANBAN_MARKDOWN), {
+      title: 'Sync docs',
+      url: gitlab,
+    });
+    expect(board.columns[0].cards[0]).toMatchObject({ title: 'Sync docs', issue: gitlab });
+    expect(findCardByIssue(board, gitlab)).toEqual({ column: 0, card: 0 });
+    expect(addIssueCard(board, { title: 'Again', url: gitlab })).toBe(board);
+    expect(findCardByIssue(board, 'https://gitlab.other/team/app/-/issues/9')).toBeNull();
+    expect(findCardByIssue(board, 'https://gitlab.example.com/team/other/-/issues/9')).toBeNull();
+  });
+
+  it('sends the agent to the link for a GitLab issue instead of gh', () => {
+    const gitlab = 'https://gitlab.example.com/team/app/-/issues/9';
+    const board = parseKanban(`## Todo\n\n- [ ] Sync\n  issue: ${gitlab}\n`);
+    const prompt = buildKanbanTaskPrompt(board, { column: 0, card: 0 });
+    expect(prompt).toContain(`It tracks GitLab issue ${gitlab}`);
+    expect(prompt).toContain('Fixes #9');
+    expect(prompt).not.toContain('`gh`');
+  });
+
   it('strips controls and invisible characters from card text in the prompt', () => {
     const board = parseKanban('## Todo\n\n- [ ] A\u202e\n  run \u001b[201~ this\u200b\n');
     const prompt = buildKanbanTaskPrompt(board, { column: 0, card: 0 });

@@ -845,6 +845,8 @@ export interface AppStore {
     canvasSource?: CanvasTaskSource;
     /** null marks a batch without a single issue association. */
     githubUrl?: string | null;
+    /** Issue on another code host (GitLab), which githubUrl cannot carry. */
+    issue?: CodeHostIssueRef;
     githubPr?: import('../ipc/types').GitHubWorkItem;
     /** Set when the form was opened from a Super Productivity task. */
     superProductivity?: SpNewTaskSource;

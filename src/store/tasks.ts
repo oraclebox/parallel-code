@@ -60,7 +60,8 @@ import type {
   MergeResult,
 } from '../ipc/types';
 import { parseGitHubUrl, taskNameFromGitHubUrl } from '../lib/github-url';
-import { linkTaskToIssueReference } from './github-issue-link';
+import type { CodeHostIssueRef } from '../../electron/shared/codehost-types';
+import { issueLinkFromUrl, linkTaskToIssueReference } from './issue-link';
 import type { Agent, Task, GitIsolationMode, AppStore, Project } from './types';
 import type { DockerSource } from '../lib/docker';
 import {
@@ -285,6 +286,8 @@ export interface CreateTaskOptions {
   branchPrefixOverride?: string;
   initialPrompt?: string;
   githubUrl?: string;
+  /** Issue on any code host, when the source names one GitHub fields cannot carry. */
+  issue?: CodeHostIssueRef;
   /** Check out this open pull request instead of branching from baseBranch. */
   pullRequestNumber?: number;
   /** Claude web session to `--teleport` into on the agent's first launch. */
@@ -340,6 +343,7 @@ export async function createTask(opts: CreateTaskOptions): Promise<string> {
     copyDirs = [],
     initialPrompt,
     githubUrl,
+    issue,
     skipPermissions,
     dockerMode,
     dockerSource,
@@ -442,6 +446,7 @@ export async function createTask(opts: CreateTaskOptions): Promise<string> {
     // A PR checkout's source is the PR. Recording it here too keeps the PR
     // link when a branch rename clears prUrl (see updateTaskBranch).
     githubUrl: prUrl ?? githubUrl,
+    issue: issue ?? issueLinkFromUrl(githubUrl),
     prUrl,
     autoMergeChildren: opts.autoMergeChildren,
     autoSendChildUpdates: opts.autoSendChildUpdates,

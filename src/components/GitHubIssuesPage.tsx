@@ -2,6 +2,7 @@ import {
   Show,
   createEffect,
   createMemo,
+  createResource,
   createSignal,
   onCleanup,
   onMount,
@@ -13,6 +14,8 @@ import { GitHubAgentPane, createAgentPaneState, type AgentPaneState } from './Gi
 import { GitHubBatchBar } from './GitHubBatchBar';
 import { GitHubIssueDetailPane, GitHubIssueListPane } from './GitHubIssuePanes';
 import { GitHubIssueFilters, createIssueFilters } from './GitHubIssueFilters';
+import { GitLabIssuesPage } from './GitLabIssuesPage';
+import { resolveCodeHostProject } from '../store/codehost';
 import type { BrowserSession } from './github-issues-session';
 import { ArrowLeftIcon, SyncIcon, SparkleIcon } from './icons';
 import { ResizablePanel, type PanelChild } from './ResizablePanel';
@@ -62,7 +65,28 @@ export function GitHubIssuesPage() {
   }
   return (
     <Show when={project()} keyed>
-      {(p) => <GitHubPageLayout project={p} session={session(p.id)} />}
+      {(p) => <ProjectIssuesPage project={p} session={session(p.id)} />}
+    </Show>
+  );
+}
+
+/**
+ * Chooses the issue browser by the project's code host, resolved from its git
+ * remotes. Undecided while that check runs, so the wrong browser never flashes.
+ */
+function ProjectIssuesPage(props: { project: Project; session: BrowserSession }) {
+  const [codeHost] = createResource(
+    () => props.project.path,
+    (root) => resolveCodeHostProject(root).catch(() => null),
+  );
+  return (
+    <Show when={codeHost() !== undefined} fallback={null}>
+      <Show
+        when={codeHost()?.hostKind === 'gitlab'}
+        fallback={<GitHubPageLayout project={props.project} session={props.session} />}
+      >
+        <GitLabIssuesPage project={props.project} />
+      </Show>
     </Show>
   );
 }

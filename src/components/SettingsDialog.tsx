@@ -14,6 +14,7 @@ import { AppearanceSettings } from './settings/AppearanceSettings';
 import { AgentSettings } from './settings/AgentSettings';
 import { AiAssistSettings } from './settings/AiAssistSettings';
 import { CardsSettings } from './settings/CardsSettings';
+import { CodeHostSettings } from './settings/CodeHostSettings';
 
 interface SettingsDialogProps {
   open: boolean;
@@ -31,6 +32,7 @@ const SETTINGS_TABS: DialogTab<SettingsTab>[] = [
   { id: 'agents', label: 'Agents' },
   { id: 'ai', label: 'AI assist' },
   { id: 'cards', label: 'Cards' },
+  { id: 'codehost', label: 'Code hosts' },
   { id: 'experimental', label: 'Experimental' },
 ];
 
@@ -165,6 +167,11 @@ export function SettingsDialog(props: SettingsDialogProps) {
       <Show when={activeTab() === 'cards'}>
         <SettingsTabPanel tab="cards">
           <CardsSettings />
+        </SettingsTabPanel>
+      </Show>
+      <Show when={activeTab() === 'codehost'}>
+        <SettingsTabPanel tab="codehost">
+          <CodeHostSettings />
         </SettingsTabPanel>
       </Show>
       <Show when={activeTab() === 'experimental'}>

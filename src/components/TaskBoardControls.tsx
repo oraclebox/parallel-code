@@ -1,7 +1,8 @@
 import { mapArray, Show } from 'solid-js';
 import { withViewTransition } from '../lib/viewTransition';
 import { store } from '../store/core';
-import { isGitHubProject, openGitHubIssues } from '../store/github';
+import { isCodeHostProject } from '../store/codehost';
+import { openGitHubIssues } from '../store/github';
 import { selectedGitHubProjectId } from '../store/github-issues-target';
 import { openKanban, openPlanView, planViewProjectId } from '../store/kanban';
 import { toggleNewTaskPanel } from '../store/navigation';
@@ -37,11 +38,11 @@ function PlanToggle() {
 }
 
 /** Why a project's issues can or cannot open yet. */
-function githubTitle(project: Project): string {
-  const onGitHub = isGitHubProject(project.path);
-  if (onGitHub === undefined) return `Checking ${project.name} for a GitHub repository`;
-  if (onGitHub === false) return `GitHub issues unavailable for ${project.name}`;
-  return `GitHub issues in ${project.name}`;
+function issuesTitle(project: Project): string {
+  const onCodeHost = isCodeHostProject(project.path);
+  if (onCodeHost === undefined) return `Checking ${project.name} for a code host repository`;
+  if (onCodeHost === false) return `Issues unavailable for ${project.name}`;
+  return `Issues in ${project.name}`;
 }
 
 /**
@@ -61,10 +62,10 @@ function GitHubIssuesButton() {
       label: p.name,
       icon: <ProjectSwatch color={p.color} icon={p.icon} />,
       get title() {
-        return githubTitle(p);
+        return issuesTitle(p);
       },
       get disabled() {
-        return isGitHubProject(p.path) !== true;
+        return isCodeHostProject(p.path) !== true;
       },
       run: () => openGitHubIssues(p.id),
     }),
@@ -81,7 +82,7 @@ function GitHubIssuesButton() {
       fallback={
         <MoreMenu
           class="task-board-new task-board-github"
-          label="GitHub issues"
+          label="Issues"
           icon={<GitHubIcon size={14} />}
           iconOnly
           items={menuItems()}
@@ -92,9 +93,9 @@ function GitHubIssuesButton() {
         <button
           type="button"
           class="task-board-new task-board-github"
-          disabled={isGitHubProject(selected().path) !== true}
-          title={githubTitle(selected())}
-          aria-label="GitHub issues"
+          disabled={isCodeHostProject(selected().path) !== true}
+          title={issuesTitle(selected())}
+          aria-label="Issues"
           onClick={() => openGitHubIssues(selected().id)}
         >
           <GitHubIcon size={14} />
@@ -108,7 +109,7 @@ function GitHubIssuesButton() {
  * The board's actions in the title bar's middle slot, which the task pills
  * leave empty while the board shows: a new task, the sidebar's project filter
  * while the sidebar is hidden, the text filter, the plan toggle for that
- * project, and GitHub issues. The plan's own tools sit in its heading row.
+ * project, and its issues. The plan's own tools sit in its heading row.
  */
 export function TaskBoardControls() {
   return (

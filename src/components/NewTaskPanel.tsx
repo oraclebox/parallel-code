@@ -80,7 +80,8 @@ import {
 import { sessionAgentForCommand } from '../../electron/shared/session-record';
 import { buildIssuePrompt, buildPrTaskPrompt, workItemTaskName } from '../lib/github-prompts';
 import { getGitHubIssue, getPullRequestDetails, readGitHubIssue } from '../store/github';
-import { linkTaskToIssueReference } from '../store/github-issue-link';
+import { readCodeHostIssue } from '../store/codehost';
+import { linkTaskToIssueReference } from '../store/issue-link';
 import { GitHubItemPicker } from './GitHubItemPicker';
 import {
   createSymlinkCandidateState,
@@ -99,7 +100,7 @@ import { BranchCombobox } from './BranchCombobox';
 import { ProjectSelect } from './ProjectSelect';
 import { SymlinkDirPicker } from './SymlinkDirPicker';
 import { isSupportedDelegationAgent } from '../store/delegation';
-import type { AgentDef, GitHubWorkItem, GitIgnoredEntry } from '../ipc/types';
+import type { AgentDef, CodeHostWorkItem, GitHubWorkItem, GitIgnoredEntry } from '../ipc/types';
 import { DEFAULT_DOCKER_IMAGE } from '../lib/docker';
 import {
   clampCoordinatorConcurrentTasks,
@@ -920,7 +921,7 @@ export function NewTaskPanel(props: NewTaskPanelProps) {
     }),
   );
 
-  async function pickGitHubItem(item: GitHubWorkItem) {
+  async function pickGitHubItem(item: CodeHostWorkItem) {
     const projectRoot = selectedProjectPath();
     if (!projectRoot) return;
     setGithubPickerOpen(false);
@@ -932,11 +933,29 @@ export function NewTaskPanel(props: NewTaskPanelProps) {
       return;
     }
     setGithubPr(null);
+    const host = item.hostKind === 'gitlab' ? 'GitLab' : 'GitHub';
     // Usable right away; the body replaces it once loaded unless the user moved on.
-    const withPlaceholder = applyPickedPrompt(buildIssuePrompt({ ...item, body: '' }));
+    const withPlaceholder = applyPickedPrompt(buildIssuePrompt({ ...item, body: '' }, host));
     try {
-      const issue = await getGitHubIssue(projectRoot, item.number);
-      if (prompt() === withPlaceholder) applyPickedPrompt(buildIssuePrompt(issue));
+      if (item.hostKind === 'gitlab') {
+        const loaded = await readCodeHostIssue(item.url);
+        if (prompt() === withPlaceholder) {
+          applyPickedPrompt(
+            buildIssuePrompt(
+              {
+                number: loaded.iid,
+                title: loaded.title,
+                url: loaded.url,
+                body: loaded.description,
+              },
+              host,
+            ),
+          );
+        }
+      } else {
+        const issue = await getGitHubIssue(projectRoot, item.number);
+        if (prompt() === withPlaceholder) applyPickedPrompt(buildIssuePrompt(issue));
+      }
     } catch (err) {
       // Stay quiet once the user picked something else or edited the prompt.
       if (prompt() === withPlaceholder) {
@@ -1032,6 +1051,7 @@ export function NewTaskPanel(props: NewTaskPanelProps) {
           : undefined
         : ((p ? extractGitHubUrl(p) : null) ??
           (teleport ? undefined : (store.newTaskDropUrl ?? undefined)));
+    const prefillIssue = prefill?.projectId === projectId ? prefill.issue : undefined;
 
     setLoading(true);
     setError('');
@@ -1082,6 +1102,7 @@ export function NewTaskPanel(props: NewTaskPanelProps) {
         branchPrefixOverride: gitIsolation() === 'worktree' ? prefix : undefined,
         initialPrompt: isFromDrop ? undefined : p,
         githubUrl: ghUrl,
+        issue: prefillIssue,
         pullRequestNumber: githubPr()?.number,
         teleport,
         skipPermissions: agentSupportsSkipPermissions() && skipPermissions(),
@@ -1316,7 +1337,7 @@ export function NewTaskPanel(props: NewTaskPanelProps) {
                   class="btn-secondary btn-with-icon"
                   aria-expanded={githubPickerOpen()}
                   onClick={() => setGithubPickerOpen((v) => !v)}
-                  title="Start from an open GitHub issue or pull request (uses the gh CLI)"
+                  title="Start from an open issue or pull request on the code host"
                   style={{
                     'margin-left': 'auto',
                     'flex-shrink': '0',
@@ -1331,7 +1352,7 @@ export function NewTaskPanel(props: NewTaskPanelProps) {
                   }}
                 >
                   <GitHubIcon size={12} />
-                  From GitHub…
+                  From issues…
                 </button>
               </Show>
             </div>

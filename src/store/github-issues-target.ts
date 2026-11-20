@@ -1,12 +1,13 @@
 import { store } from './core';
-import { isGitHubProject, openGitHubIssues } from './github';
+import { isCodeHostProject } from './codehost';
+import { openGitHubIssues } from './github';
 import { planViewProjectId } from './kanban';
 import { showNotification } from './notification';
 import { projectPageOpen } from './project-pages';
 import { isPlannableProject } from './projects';
 
-/** Why there are no GitHub issues to open: nothing names a project. */
-const NO_GITHUB_ISSUES_TARGET = 'Select a project or task to see its GitHub issues';
+/** Why there are no issues to open: nothing names a project. */
+const NO_ISSUES_TARGET = 'Select a project or task to see its issues';
 
 /** The project the board is explicitly on: the open plan's, else the selected one. */
 export function selectedGitHubProjectId(): string | null {
@@ -36,12 +37,12 @@ export function toggleGitHubIssues(): void {
   }
   const project = store.projects.find((p) => p.id === githubIssuesTargetProjectId());
   if (!project) {
-    showNotification(NO_GITHUB_ISSUES_TARGET);
+    showNotification(NO_ISSUES_TARGET);
     return;
   }
-  // Same answer as the board button, which disables a known non-GitHub
-  // project; while gh is still asked, the page reports a failure itself.
-  if (isGitHubProject(project.path) === false)
-    showNotification(`GitHub issues unavailable for ${project.name}`);
+  // Same answer as the board button, which disables a known project without a
+  // code host; while the check is pending, the page reports a failure itself.
+  if (isCodeHostProject(project.path) === false)
+    showNotification(`Issues unavailable for ${project.name}`);
   else openGitHubIssues(project.id);
 }

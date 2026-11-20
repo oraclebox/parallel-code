@@ -1,4 +1,5 @@
 import type { PrBabysit } from '../lib/pr-babysit';
+import type { CodeHostIssueRef } from '../../electron/shared/codehost-types';
 import type { ProjectIconId } from '../lib/project-icon';
 import type { TeleportTarget } from '../lib/claude-session-url';
 import type {
@@ -336,6 +337,8 @@ export interface Task {
   dockerSource?: DockerSource;
   dockerImage?: string;
   githubUrl?: string;
+  /** The issue this task is linked to, on GitHub or a configured GitLab. */
+  issue?: CodeHostIssueRef;
   prUrl?: string;
   superProductivity?: SuperProductivityLink;
   /** Absolute return time for a timed snooze, retained across app restarts. */
@@ -497,6 +500,8 @@ export interface PersistedTask {
   dockerSource?: DockerSource;
   dockerImage?: string;
   githubUrl?: string;
+  /** Validated on load. */
+  issue?: unknown;
   prUrl?: string;
   /** Validated on load. */
   superProductivity?: unknown;
@@ -726,7 +731,14 @@ export interface RemoteAccess {
   connectedClients: number;
 }
 
-export type SettingsTab = 'general' | 'appearance' | 'agents' | 'ai' | 'cards' | 'experimental';
+export type SettingsTab =
+  | 'general'
+  | 'appearance'
+  | 'agents'
+  | 'ai'
+  | 'cards'
+  | 'codehost'
+  | 'experimental';
 
 export interface AppStore {
   projects: Project[];
@@ -833,6 +845,8 @@ export interface AppStore {
     canvasSource?: CanvasTaskSource;
     /** null marks a batch without a single issue association. */
     githubUrl?: string | null;
+    /** Issue on another code host (GitLab), which githubUrl cannot carry. */
+    issue?: CodeHostIssueRef;
     githubPr?: import('../ipc/types').GitHubWorkItem;
     /** Set when the form was opened from a Super Productivity task. */
     superProductivity?: SpNewTaskSource;

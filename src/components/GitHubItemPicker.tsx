@@ -1,22 +1,22 @@
 import { For, Show, createResource, createSignal, onCleanup } from 'solid-js';
-import { listGitHubWorkItems } from '../store/github';
+import { listCodeHostWorkItems } from '../store/codehost';
 import { errMessage } from '../lib/log';
 import { theme, bannerStyle } from '../lib/theme';
-import type { GitHubWorkItem } from '../ipc/types';
+import type { CodeHostWorkItem } from '../ipc/types';
 
 const SEARCH_DEBOUNCE_MS = 400;
 
 interface GitHubItemPickerProps {
   projectRoot: string;
-  onPick: (item: GitHubWorkItem) => void;
+  onPick: (item: CodeHostWorkItem) => void;
   /** Marks items that are already taken (e.g. on the plan) and disables them. */
-  pickedLabel?: (item: GitHubWorkItem) => string | null;
+  pickedLabel?: (item: CodeHostWorkItem) => string | null;
   /** Without its own frame, for use inside a popover that already has one. */
   bare?: boolean;
   autofocus?: boolean;
 }
 
-/** Lists the project repo's open issues and PRs, searchable through `gh --search`. */
+/** Lists the project's open issues and PRs from its GitHub or GitLab host. */
 export function GitHubItemPicker(props: GitHubItemPickerProps) {
   const [search, setSearch] = createSignal('');
   let debounce: number | undefined;
@@ -24,7 +24,7 @@ export function GitHubItemPicker(props: GitHubItemPickerProps) {
 
   const [items] = createResource(
     () => ({ root: props.projectRoot, q: search() }),
-    ({ root, q }) => listGitHubWorkItems(root, q || undefined),
+    ({ root, q }) => listCodeHostWorkItems(root, q || undefined),
   );
 
   return (
@@ -49,8 +49,8 @@ export function GitHubItemPicker(props: GitHubItemPickerProps) {
         }}
         class="input-field"
         type="search"
-        aria-label="Search issues and pull requests"
-        placeholder="Search open issues and pull requests…"
+        aria-label="Search open issues"
+        placeholder="Search open issues…"
         onInput={(e) => {
           const value = e.currentTarget.value.trim();
           clearTimeout(debounce);
@@ -75,15 +75,13 @@ export function GitHubItemPicker(props: GitHubItemPickerProps) {
         )}
       </Show>
       <Show when={items.loading}>
-        <span style={{ 'font-size': '12px', color: theme.fgSubtle }}>Loading from GitHub…</span>
+        <span style={{ 'font-size': '12px', color: theme.fgSubtle }}>Loading issues…</span>
       </Show>
       <Show when={!items.loading && !items.error && items()?.length === 0}>
-        <span style={{ 'font-size': '12px', color: theme.fgSubtle }}>
-          No open issues or pull requests found.
-        </span>
+        <span style={{ 'font-size': '12px', color: theme.fgSubtle }}>No open issues found.</span>
       </Show>
       <ul
-        aria-label="Open issues and pull requests"
+        aria-label="Open issues"
         style={{
           'list-style': 'none',
           margin: '0',

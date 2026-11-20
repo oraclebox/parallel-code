@@ -1,4 +1,5 @@
 import { cleanHandoffText } from './agent-handoff';
+import { parseIssueUrl } from '../../electron/shared/codehost-refs';
 
 /**
  * A Kanban board stored as plain Markdown (KANBAN.md at the project root):
@@ -121,7 +122,8 @@ const BRANCH_RE = /^branch:[ \t]*`([^`\s]+)`[ \t]*$/;
 const DEPENDS_RE = /^depends:[ \t]*(\S.*?)[ \t]*$/;
 const GROUP_RE = /^group:[ \t]*(\S.*?)[ \t]*$/;
 const RELATED_RE = /^related:[ \t]*(\S.*?)[ \t]*$/;
-const ISSUE_RE = /^issue:[ \t]*(https:\/\/github\.com\/\S+)[ \t]*$/;
+// Any absolute URL; parseIssueUrl decides whether it names an issue or PR.
+const ISSUE_RE = /^issue:[ \t]*(https:\/\/[^\s]+)[ \t]*$/;
 const CHECKLIST_RE = /^([ \t]*[-*+][ \t]+\[)([ xX])(\][ \t]+)(.*)$/;
 const NEGATED_RE = /\b(not|un)[ \t-]*(started|done|finished|complete[d]?)\b/i;
 const DONE_COLUMN_RE = /\b(done|complete[d]?|finished|shipped|closed)\b/i;
@@ -273,7 +275,7 @@ function readCardBody(
         if (!related.includes(relation[1])) related.push(relation[1]);
         continue;
       }
-      if (linked) {
+      if (linked && parseIssueUrl(linked[1])) {
         if (!issue) issue = linked[1];
         else extraIssues.push(linked[1]);
         continue;
@@ -907,10 +909,15 @@ export function buildKanbanTaskPrompt(board: KanbanBoard, ref: KanbanCardRef): s
   if (card.depends.length) {
     parts.push(`This card builds on: ${card.depends.join(', ')}.`);
   }
-  const issue = parseGitHubIssueUrl(card.issue);
+  const issue = parseIssueUrl(card.issue);
   if (issue) {
+    const gitlab = issue.hostKind === 'gitlab';
+    const host = gitlab ? 'GitLab' : 'GitHub';
+    const noun = issue.kind === 'pr' ? (gitlab ? 'merge request' : 'pull request') : 'issue';
+    const read = gitlab ? 'at the link' : 'with `gh`';
+    const reference = gitlab ? 'merge request' : 'pull request';
     parts.push(
-      `It tracks GitHub ${issue.kind === 'pr' ? 'pull request' : 'issue'} ${card.issue}; read it with \`gh\` for the details${issue.kind === 'issue' ? `, and reference it in commits and the pull request (for example "Fixes #${issue.number}")` : ''}.`,
+      `It tracks ${host} ${noun} ${card.issue}; read it ${read} for the details${issue.kind === 'issue' ? `, and reference it in commits and the ${reference} (for example "Fixes #${issue.iid}")` : ''}.`,
     );
   }
   parts.push(
@@ -931,27 +938,28 @@ export function parseGitHubIssueUrl(
   return { repo: match[1], number: Number(match[3]), kind: match[2] === 'pull' ? 'pr' : 'issue' };
 }
 
-/** The card tracking a GitHub issue or PR, if any. */
+/** Identity of the issue or pull request a URL points at, on any code host. */
+function issueIdentity(url: string): string | null {
+  const ref = parseIssueUrl(url);
+  if (!ref) return null;
+  const repo = ref.hostKind === 'github' ? ref.projectPath.toLowerCase() : ref.projectPath;
+  return `${ref.hostKind}:${ref.host}:${repo}#${ref.iid}`;
+}
+
+/** The card tracking an issue or PR on GitHub or a configured GitLab, if any. */
 export function findCardByIssue(board: KanbanBoard, url: string): KanbanCardRef | null {
-  const wanted = parseGitHubIssueUrl(url);
+  const wanted = issueIdentity(url);
   if (!wanted) return null;
   for (let column = 0; column < board.columns.length; column++) {
-    const card = board.columns[column].cards.findIndex((c) => {
-      const linked = parseGitHubIssueUrl(c.issue);
-      return (
-        !!linked &&
-        linked.number === wanted.number &&
-        linked.repo.toLowerCase() === wanted.repo.toLowerCase()
-      );
-    });
+    const card = board.columns[column].cards.findIndex((c) => issueIdentity(c.issue) === wanted);
     if (card >= 0) return { column, card };
   }
   return null;
 }
 
 /**
- * Adds a card for a GitHub issue or PR to the first column, unless the board
- * already tracks it. Only the title is copied; the body stays on GitHub, where
+ * Adds a card for an issue or PR to the first column, unless the board already
+ * tracks it. Only the title is copied; the body stays on the code host, where
  * the agent reads it, so untrusted text never lands in the file unseen.
  */
 export function addIssueCard(
@@ -959,7 +967,7 @@ export function addIssueCard(
   item: { title: string; url: string },
   column = 0,
 ): KanbanBoard {
-  if (findCardByIssue(board, item.url) || !parseGitHubIssueUrl(item.url)) return board;
+  if (findCardByIssue(board, item.url) || !issueIdentity(item.url)) return board;
   const target = Math.min(Math.max(0, column), board.columns.length - 1);
   if (target < 0) return board;
   const added = addCard(board, target, cleanHandoffText(item.title));

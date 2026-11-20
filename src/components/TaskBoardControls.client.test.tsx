@@ -30,7 +30,7 @@ function mount(): HTMLElement {
 }
 
 function githubButton(host: HTMLElement): HTMLButtonElement {
-  const found = host.querySelector<HTMLButtonElement>('[aria-label="GitHub issues"]');
+  const found = host.querySelector<HTMLButtonElement>('[aria-label="Issues"]');
   if (!found) throw new Error('missing GitHub button');
   return found;
 }
@@ -92,13 +92,13 @@ describe('TaskBoardControls', () => {
     expect(host.querySelector('[aria-label="Add idea"]')).toBeNull();
   });
 
-  it("opens a GitHub project's issues, disabled for the others", async () => {
+  it("opens a code-host project's issues, disabled for the others", async () => {
     setStore('projects', 1, { id: 'p2', name: 'api', color: '#def', path: '/github-repo' });
     const host = mount();
     setTaskProjectFilter('p1');
     await settle();
     expect(githubButton(host).disabled).toBe(true);
-    expect(githubButton(host).title).toBe('GitHub issues unavailable for weather-app');
+    expect(githubButton(host).title).toBe('Issues unavailable for weather-app');
 
     setTaskProjectFilter('p2');
     await settle();
@@ -132,7 +132,7 @@ describe('TaskBoardControls', () => {
         (b) => b.textContent === name,
       );
     expect(item('weather-app')?.disabled).toBe(true);
-    expect(item('weather-app')?.title).toBe('GitHub issues unavailable for weather-app');
+    expect(item('weather-app')?.title).toBe('Issues unavailable for weather-app');
     expect(item('api')?.disabled).toBe(false);
     item('api')?.click();
     expect(store.githubIssuesProjectId).toBe('p2');
@@ -158,7 +158,7 @@ describe('TaskBoardControls', () => {
     expect(entry('api')?.querySelector('.project-swatch-icon svg')).not.toBeNull();
   });
 
-  it('keeps a menu entry, and its focus, while gh answers', async () => {
+  it('keeps a menu entry, and its focus, while the host check answers', async () => {
     setStore('projects', 1, { id: 'p2', name: 'api', color: '#def', path: '/unasked-repo' });
     const host = mount();
     githubButton(host).click();
@@ -181,7 +181,7 @@ describe('TaskBoardControls', () => {
     setTaskProjectFilter('p2');
     await settle();
     expect(githubButton(host).disabled).toBe(true);
-    expect(githubButton(host).title).toBe('GitHub issues unavailable for web');
+    expect(githubButton(host).title).toBe('Issues unavailable for web');
 
     setTaskProjectFilter('p1');
     now.mockReturnValue(1_000 + 60_000);
@@ -231,7 +231,7 @@ describe('toggleGitHubIssues', () => {
     expect(store.githubIssuesProjectId).toBe('p2');
   });
 
-  it("prefers an open plan's project, and refuses a known non-GitHub project", async () => {
+  it("prefers an open plan's project, and refuses a known non-code-host project", async () => {
     setStore('projects', 1, { id: 'p2', name: 'api', color: '#def', path: '/github-repo' });
     openKanban('p2');
     // Activating another project's task clears the filter; the plan still names p2.
@@ -243,7 +243,7 @@ describe('toggleGitHubIssues', () => {
     setStore('kanbanProjectId', null);
     setTaskProjectFilter('p1');
     mount();
-    await settle(); // the button's check learns /w is not on GitHub
+    await settle(); // the button's check learns /w is not on a code host
     toggleGitHubIssues();
     expect(store.githubIssuesProjectId).toBeNull();
   });

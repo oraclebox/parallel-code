@@ -17,6 +17,7 @@ import {
 import { ensureProjectAgentTask, prefillGitHubAgentPrompt } from '../store/github-agent';
 import { triggerFocus } from '../store/focused-panel';
 import { publishGitHubList, showGitHubList } from '../store/github-lists';
+import { resolveCodeHostProject } from '../store/codehost';
 import type { GitHubIssueSummary, GitHubIssuePage } from '../ipc/types';
 import type { Task } from '../store/types';
 
@@ -46,6 +47,12 @@ vi.mock('../store/tasks', () => ({
   setTaskPromptDraftActive: vi.fn(),
 }));
 vi.mock('../store/focused-panel', () => ({ setTaskFocusedPanel: vi.fn(), triggerFocus: vi.fn() }));
+vi.mock('../store/codehost', () => ({
+  resolveCodeHostProject: vi.fn(),
+  browseCodeHostIssues: vi.fn(),
+  readCodeHostIssue: vi.fn(),
+  readCodeHostIssueActivity: vi.fn(),
+}));
 const agentState = vi.hoisted(() => ({ loaded: true, failed: false, installed: true }));
 vi.mock('../store/github-agent', () => ({
   ensureProjectAgentTask: vi.fn(() => null),
@@ -135,6 +142,11 @@ beforeEach(() => {
   setStore('showNewTaskPanel', false);
   setStore('newTaskPrefillPrompt', null);
   setStore('githubIssuesProjectId', 'p1');
+  vi.mocked(resolveCodeHostProject).mockResolvedValue({
+    hostKind: 'github',
+    host: 'github.com',
+    projectPath: 'owner/repo',
+  });
   vi.mocked(browseGitHubIssues).mockResolvedValue(page);
   vi.mocked(readGitHubIssue).mockResolvedValue(issue);
   vi.mocked(resolveGitHubRepository).mockResolvedValue('owner/repo');

@@ -52,3 +52,20 @@ export type {
   UpdateStatus,
   WorktreeStatus,
 } from '../../electron/ipc/shared-types';
+
+export type {
+  CodeHostActivityEntry,
+  CodeHostActivityPage,
+  CodeHostHostInput,
+  CodeHostHostsSnapshot,
+  CodeHostInstance,
+  CodeHostIssuePage,
+  CodeHostIssueQuery,
+  CodeHostIssueRef,
+  CodeHostIssueState,
+  CodeHostIssueSummary,
+  CodeHostKind,
+  CodeHostProject,
+  CodeHostTestResult,
+  CodeHostWorkItem,
+} from '../../electron/shared/codehost-types';

@@ -33,7 +33,11 @@ When committing, use conventional commit messages, such as `fix(terminal): resto
 
 ## GitHub access
 
-- For GitHub CLI/API access in this project, authenticate with the PAT in the `PARALLEL_CODE_GITHUB_PAT` environment variable: `GH_TOKEN="$PARALLEL_CODE_GITHUB_PAT" gh ...`.
+- For GitHub CLI/API access in this project, authenticate with the PAT in `PARALLEL_CODE_GITHUB_PAT`. `GITHUB_TOKEN` is a read-only fine-grained PAT and returns `403` for issue and PR writes.
+- `PARALLEL_CODE_GITHUB_PAT` is exported only for interactive shells in `~/.bashrc`. Read it with `bash -ic`; `bash -lc` silently sees it empty:
+  `GH_TOKEN="$(bash -ic 'printf %s "${PARALLEL_CODE_GITHUB_PAT:-}"' 2>/dev/null)" gh ...`
+- Use `scripts/gh-owner.sh` for issue and PR writes: it reads the token the same way and refuses to run when the variable is empty.
+- Pass `--repo oraclebox/parallel-code` and keep issue bodies in a file (`--body-file`); never print the token.
 - Never write tokens or other credentials into tracked files.
 
 ## Architecture and conventions
@@ -86,3 +90,4 @@ When committing, use conventional commit messages, such as `fix(terminal): resto
 - `docs/browser-preview.md`: native browser architecture, limitations, and verification.
 - `docs/market/`: competitor scorecard, refreshed monthly by a scheduled session; the README there holds the target and the method.
 - `docs/architecture-overview.html`: broader architecture overview. New files under `docs/` are ignored unless explicitly included in `.gitignore`.
+- `docs.qoder.com`: append `.md` to the page path (for example `https://docs.qoder.com/cli/cli-reference.md`). The HTML pages embed the full site payload; the `.md` pages are clean Markdown.

@@ -1783,6 +1783,17 @@ describe('sendPrompt', () => {
     expect(mockSetStore).toHaveBeenCalledWith('tasks', 'task-1', 'lastPrompt', 'hello Codex');
   });
 
+  it('records the history text instead of the composed message', async () => {
+    await sendPrompt('task-1', 'agent-1', 'Composed\n\nReferenced files:\n"a.ts"', {
+      historyText: 'Raw @a.ts',
+    });
+
+    expect(mockTasks['task-1'].lastPrompt).toBe('Raw @a.ts');
+    expect(mockTasks['task-1'].promptHistory).toEqual([
+      { text: 'Raw @a.ts', sentAt: expect.any(Number), agentId: 'agent-1' },
+    ]);
+  });
+
   it('sends raw prompt text when bracketed paste is not enabled', async () => {
     await sendPrompt('task-1', 'agent-1', 'hello Codex');
 

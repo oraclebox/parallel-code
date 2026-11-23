@@ -519,6 +519,22 @@ describe('Codex chat view', () => {
     expect(task().promptDraft).toBe('Newer typing');
   });
 
+  it('records the raw chat draft as history text', async () => {
+    dispose = render(() => <AgentChatView task={task()} agentId="agent-1" active />, container);
+    await tick();
+    await mocks.chatProps?.onSend(
+      'Composed message\n\nReferenced files:\n"src/a.ts"',
+      [],
+      'Raw @src/a.ts',
+    );
+    expect(mocks.sendPrompt).toHaveBeenCalledWith(
+      'task-1',
+      'agent-1',
+      'Composed message\n\nReferenced files:\n"src/a.ts"',
+      { images: [], historyText: 'Raw @src/a.ts' },
+    );
+  });
+
   it('routes model choices and catalog refreshes to the same conversation', async () => {
     dispose = render(() => <AgentChatView task={task()} agentId="agent-1" active />, container);
     await tick();

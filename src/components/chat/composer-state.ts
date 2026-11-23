@@ -10,6 +10,8 @@ export interface QueuedMessage {
   id: string;
   text: string;
   images: ChatImage[];
+  /** The raw draft, recorded as history when the message is finally sent. */
+  draftText?: string;
 }
 
 /** What the composer keeps across remounts of the same conversation. */
@@ -32,7 +34,7 @@ export interface ComposerInput {
   draft: string;
   disabled: boolean;
   onDraft: (text: string) => void;
-  onSend: (text: string, images: ChatImage[]) => Promise<void>;
+  onSend: (text: string, images: ChatImage[], draftText?: string) => Promise<void>;
   /** Runs a `!` command; without it, a message starting with `!` goes to the agent. */
   onShell?: (command: string) => Promise<void>;
   onStop: () => Promise<void>;
@@ -79,7 +81,7 @@ export function createComposer(
   async function transmit(
     text: string,
     attached: ChatImage[],
-    from: { queuedId?: string; shown?: PendingMessage } = {},
+    from: { queuedId?: string; shown?: PendingMessage; draftText?: string } = {},
   ) {
     if (sending() || stopping() || props.disabled || props.state.status !== 'ready') return false;
     const queuedId = from.queuedId;
@@ -91,7 +93,7 @@ export function createComposer(
     try {
       const command = props.onShell && shellCommand(text);
       if (command) await props.onShell?.(command);
-      else await props.onSend(text, attached);
+      else await props.onSend(text, attached, from.draftText);
       if (!disposed)
         batch(() => {
           if (queuedId) dequeue(queuedId);
@@ -169,7 +171,7 @@ export function createComposer(
       if (!queue().length) setQueuePaused(false);
       setQueue((entries) => [
         ...entries,
-        { id: crypto.randomUUID(), text: message, images: attached },
+        { id: crypto.randomUUID(), text: message, images: attached, draftText: text },
       ]);
       clearSent(text, attached, referenced);
       return;
@@ -180,7 +182,7 @@ export function createComposer(
     clearSent(text, attached, referenced);
     // A command shows up in the log as soon as it starts; nothing to stand in for it.
     const shown = shell ? undefined : { text: message, images: attached, after: userCount() };
-    if (await transmit(message, attached, { shown })) return;
+    if (await transmit(message, attached, { shown, draftText: text })) return;
     batch(() => {
       setPending(undefined);
       restore(text, attached, referenced);
@@ -215,7 +217,9 @@ export function createComposer(
       sending()
     )
       return;
-    void untrack(() => transmit(next.text, next.images, { queuedId: next.id }));
+    void untrack(() =>
+      transmit(next.text, next.images, { queuedId: next.id, draftText: next.draftText }),
+    );
   });
 
   // A reconnect replaces the agent process; queued work waits for an explicit retry.
@@ -228,7 +232,8 @@ export function createComposer(
   function retryQueue() {
     const next = queue()[0];
     setQueuePaused(false);
-    if (next) void transmit(next.text, next.images, { queuedId: next.id });
+    if (next)
+      void transmit(next.text, next.images, { queuedId: next.id, draftText: next.draftText });
   }
 
   async function stop(interruptAndSend = false) {
@@ -249,7 +254,7 @@ export function createComposer(
       if (disposed || !interruptAndSend) return;
       batch(() => {
         setQueue((entries) => [
-          { id: crypto.randomUUID(), text: message, images: attached },
+          { id: crypto.randomUUID(), text: message, images: attached, draftText: draft },
           ...entries,
         ]);
         clearSent(draft, attached, referenced);
@@ -305,9 +310,14 @@ export function createComposer(
   }
 
   function editQueued(entry: QueuedMessage) {
-    if (!reuse(entry.text, entry.images)) return false;
+    if (!reuse(entry.draftText ?? entry.text, entry.images)) return false;
     dequeue(entry.id);
     return true;
+  }
+
+  /** Empties the draft, for the Clear button beside Send. */
+  function clear() {
+    props.onDraft('');
   }
 
   return {
@@ -331,6 +341,7 @@ export function createComposer(
     error,
     setError,
     send,
+    clear,
     stop,
     addImages,
     addDropped,

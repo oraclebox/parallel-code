@@ -13,7 +13,7 @@ import { forgetBlockEdits } from '../documents/block-edit-state';
 import { forgetGitHubLists } from './github-list-storage';
 import { clearAgentActivity } from './taskStatus';
 import { assignFreshSessionId } from './session-ids';
-import { forgetAgentPrompts } from '../lib/prompt-history';
+import { forgetAgentPrompts, MAX_PROMPT_BOOKMARKS } from '../lib/prompt-history';
 import { delegationRequest, registerTaskAuthority } from './delegation';
 
 // Pastels, plus one deeper blue so two blue projects stay distinguishable.
@@ -43,6 +43,19 @@ export function sortProjects(projects: Project[]): void {
 
 export function getProject(projectId: string): Project | undefined {
   return store.projects.find((p) => p.id === projectId);
+}
+
+/** Pin or unpin a prompt for reuse from any task in the project. Text is the identity. */
+export function togglePromptBookmark(projectId: string, text: string): void {
+  if (!text.trim()) return;
+  const project = getProject(projectId);
+  if (!project) return;
+  const current = project.promptBookmarks ?? [];
+  const saved = current.some((bookmark) => bookmark.text === text);
+  const next = saved
+    ? current.filter((bookmark) => bookmark.text !== text)
+    : [...current, { text, savedAt: Date.now() }].slice(-MAX_PROMPT_BOOKMARKS);
+  updateProject(projectId, { promptBookmarks: next.length > 0 ? next : undefined });
 }
 
 export function addProject(name: string, path: string, isGitRepo?: boolean): string {
@@ -184,6 +197,7 @@ export function updateProject(
       | 'verifyAutoRun'
       | 'reviewChecks'
       | 'terminalBookmarks'
+      | 'promptBookmarks'
       | 'worktreeSetupScript'
       | 'worktreeTeardownScript'
       | 'worktreeIncludes'
@@ -235,6 +249,8 @@ export function updateProject(
         s.projects[idx].reviewChecks = [...updates.reviewChecks];
       if (updates.terminalBookmarks !== undefined)
         s.projects[idx].terminalBookmarks = updates.terminalBookmarks;
+      if (Object.prototype.hasOwnProperty.call(updates, 'promptBookmarks'))
+        s.projects[idx].promptBookmarks = updates.promptBookmarks;
       if (Object.prototype.hasOwnProperty.call(updates, 'worktreeSetupScript'))
         s.projects[idx].worktreeSetupScript = sanitizeWorktreeScript(updates.worktreeSetupScript);
       if (Object.prototype.hasOwnProperty.call(updates, 'worktreeTeardownScript'))

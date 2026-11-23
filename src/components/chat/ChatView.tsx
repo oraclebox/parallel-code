@@ -35,7 +35,7 @@ export interface ChatProps {
   onSelectModel: (model: string, reasoningEffort?: string) => Promise<void>;
   onReloadModels: () => Promise<void>;
   onDraft: (text: string) => void;
-  onSend: (text: string, images: ChatImage[]) => Promise<void>;
+  onSend: (text: string, images: ChatImage[], draftText?: string) => Promise<void>;
   /** Runs a `!` draft as a shell command; omitted where the agent cannot record one. */
   onShell?: (command: string) => Promise<void>;
   onStop: () => Promise<void>;

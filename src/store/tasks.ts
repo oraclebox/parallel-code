@@ -922,6 +922,8 @@ export async function sendPrompt(
     appPrompt?: boolean;
     /** Images attached in the chat composer; terminal agents take text only. */
     images?: ChatImage[];
+    /** What to record as history instead of `text`, for a composed chat message. */
+    historyText?: string;
     /** Cancel app-initiated delivery when its authorization changes. */
     signal?: AbortSignal;
   } = {},
@@ -948,7 +950,7 @@ export async function sendPrompt(
     });
     if (withChatGuidance) markCanvasGuided(agentId, chatGeneration);
     setTaskLastInputAt(taskId);
-    setLastPrompt(taskId, text, agentId);
+    setLastPrompt(taskId, options.historyText ?? text, agentId);
     if (task && !hasPromptedAgent)
       setStore('tasks', taskId, 'promptedAgentIds', [...promptedAgentIds, agentId]);
     if (isQueuedInitialPrompt) setStore('tasks', taskId, 'initialPrompt', undefined);
@@ -970,7 +972,7 @@ export async function sendPrompt(
   // App sends bypass xterm's onData handler, which normally clears this flag on Enter.
   if (agentId === task?.agentIds[0]) setTaskTerminalInputPending(taskId, false);
   if (withGuidance) markCanvasGuided(agentId, guidedGeneration);
-  setLastPrompt(taskId, text, agentId);
+  setLastPrompt(taskId, options.historyText ?? text, agentId);
   if (task && !hasPromptedAgent) {
     setStore('tasks', taskId, 'promptedAgentIds', [...promptedAgentIds, agentId]);
     if (isQueuedInitialPrompt) setStore('tasks', taskId, 'initialPrompt', undefined);

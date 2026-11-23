@@ -7,11 +7,14 @@ import { render } from 'solid-js/web';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PromptInput } from './PromptInput';
 import {
+  clearInitialPrompt,
   getAgentOutputTail,
   onAgentReady,
   registerAction,
   registerFocusFn,
   sendPrompt,
+  setInitialPrompt,
+  setTaskPromptDraftActive,
   showNotification,
 } from '../store/store';
 import { NOTIFICATION_ERROR_MS } from '../store/notification';
@@ -27,6 +30,9 @@ const { storeMock, setTaskPromptDraft, taskUsesAgentChat } = vi.hoisted(() => ({
 }));
 
 vi.mock('../store/agent-chat', () => ({ taskUsesAgentChat }));
+
+const pollMock = vi.hoisted(() => ({ pollUntilPromptAppearsInOutput: vi.fn(async () => true) }));
+vi.mock('./prompt-verify', () => pollMock);
 
 vi.mock('../lib/ipc', () => ({ invoke: vi.fn(async () => undefined), fireAndForget: vi.fn() }));
 vi.mock('../lib/log', async (importOriginal) => ({
@@ -84,6 +90,11 @@ afterEach(() => {
   vi.mocked(registerFocusFn).mockClear();
   vi.mocked(registerAction).mockClear();
   vi.mocked(showNotification).mockClear();
+  pollMock.pollUntilPromptAppearsInOutput.mockReset();
+  pollMock.pollUntilPromptAppearsInOutput.mockResolvedValue(true);
+  vi.mocked(clearInitialPrompt).mockReset();
+  vi.mocked(setInitialPrompt).mockReset();
+  vi.mocked(sendPrompt).mockClear();
 });
 
 async function waitFor(probe: () => boolean): Promise<void> {
@@ -103,6 +114,26 @@ function mount(taskId: string): HTMLTextAreaElement {
   const el = container.querySelector<HTMLTextAreaElement>('textarea.prompt-textarea');
   if (!el) throw new Error('textarea not rendered');
   return el;
+}
+
+let setInitialRef: (text: string | undefined) => void = () => {};
+
+function mountReactiveInitial() {
+  const [initial, setInitial] = createSignal<string | undefined>('do it');
+  setInitialRef = (text) => setInitial(text);
+  vi.mocked(setInitialPrompt).mockImplementation((_taskId, text) => setInitial(text));
+  vi.mocked(clearInitialPrompt).mockImplementation(() => setInitial(undefined));
+  const container = document.createElement('div');
+  document.body.append(container);
+  disposers.push(
+    render(
+      () => (
+        <PromptInput taskId="task-1" taskName="Task" agentId="agent-1" initialPrompt={initial()} />
+      ),
+      container,
+    ),
+  );
+  return container.querySelector<HTMLTextAreaElement>('textarea.prompt-textarea');
 }
 
 describe('PromptInput key ownership', () => {
@@ -194,6 +225,162 @@ describe('PromptInput failed send', () => {
     });
     expect(textarea.value).toBe('send me');
     expect(setTaskPromptDraft).not.toHaveBeenCalledWith('task-1', '');
+  });
+});
+
+describe('PromptInput delivery clearing', () => {
+  it('clears the box when the prompt is delivered, before the echo check returns', async () => {
+    let finishSend = (): void => {};
+    let finishPoll = (): void => {};
+    vi.mocked(sendPrompt).mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finishSend = () => {
+            setInitialRef(undefined);
+            resolve();
+          };
+        }),
+    );
+    pollMock.pollUntilPromptAppearsInOutput.mockImplementationOnce(
+      () => new Promise((resolve) => (finishPoll = () => resolve(true))),
+    );
+    vi.useFakeTimers();
+    try {
+      vi.mocked(getAgentOutputTail).mockReturnValue('Claude Code\n❯ ');
+      storeMock.tasks = { 'task-1': { id: 'task-1', agentIds: ['agent-1'] } };
+      const textarea = mountReactiveInitial();
+      await vi.advanceTimersByTimeAsync(10_000);
+      finishSend();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(textarea?.value).toBe('');
+      finishPoll();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('puts the prompt back when the echo check gives up and the box is still empty', async () => {
+    vi.mocked(sendPrompt).mockImplementation(async () => {
+      setInitialRef(undefined);
+    });
+    pollMock.pollUntilPromptAppearsInOutput.mockResolvedValue(false);
+    vi.useFakeTimers();
+    try {
+      vi.mocked(getAgentOutputTail).mockReturnValue('Claude Code\n❯ ');
+      storeMock.tasks = { 'task-1': { id: 'task-1', agentIds: ['agent-1'] } };
+      const textarea = mountReactiveInitial();
+      await vi.advanceTimersByTimeAsync(20_000);
+      expect(textarea?.value).toBe('do it');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('clears the draft without cancelling typing that arrived during the send', async () => {
+    let finishSend = (): void => {};
+    vi.mocked(sendPrompt).mockImplementationOnce(
+      () => new Promise<void>((resolve) => (finishSend = resolve)),
+    );
+    storeMock.tasks = { 'task-1': { id: 'task-1', agentIds: ['agent-1'], promptDraft: 'first' } };
+    const textarea = mount('task-1');
+    textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    textarea.value = 'second';
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    finishSend();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(textarea.value).toBe('second');
+    expect(setTaskPromptDraft).not.toHaveBeenCalledWith('task-1', '');
+  });
+
+  it('clears the box, queued prompt and draft flag from the Clear button', () => {
+    storeMock.tasks = {
+      'task-1': { id: 'task-1', agentIds: ['agent-1'], promptDraft: 'do it' },
+    };
+    const [initial, setInitial] = createSignal<string | undefined>('do it');
+    vi.mocked(clearInitialPrompt).mockImplementation(() => setInitial(undefined));
+    const container = document.createElement('div');
+    document.body.append(container);
+    disposers.push(
+      render(
+        () => (
+          <PromptInput
+            taskId="task-1"
+            taskName="Task"
+            agentId="agent-1"
+            initialPrompt={initial()}
+          />
+        ),
+        container,
+      ),
+    );
+    const textarea = container.querySelector<HTMLTextAreaElement>('textarea.prompt-textarea');
+    const clear = container.querySelector<HTMLButtonElement>('.prompt-clear-btn');
+    if (!textarea || !clear) throw new Error('missing composer controls');
+    expect(clear.disabled).toBe(false);
+    clear.click();
+    expect(textarea.value).toBe('');
+    expect(setTaskPromptDraft).toHaveBeenLastCalledWith('task-1', '');
+    expect(clearInitialPrompt).toHaveBeenCalledWith('task-1');
+    expect(setTaskPromptDraftActive).toHaveBeenLastCalledWith('task-1', false);
+    expect(document.activeElement).toBe(textarea);
+    expect(clear.disabled).toBe(true);
+  });
+
+  it('keeps a cleared box empty when the send fails afterwards', async () => {
+    let fail = (): void => {};
+    vi.mocked(sendPrompt).mockImplementationOnce(
+      () => new Promise<void>((_, reject) => (fail = () => reject(new Error('offline')))),
+    );
+    storeMock.tasks = { 'task-1': { id: 'task-1', agentIds: ['agent-1'], promptDraft: 'send me' } };
+    const textarea = mount('task-1');
+    textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    const clear = document.querySelector<HTMLButtonElement>('.prompt-clear-btn');
+    clear?.click();
+    fail();
+    await waitFor(() => vi.mocked(showNotification).mock.calls.length > 0);
+    expect(textarea.value).toBe('');
+  });
+  it('does not re-arm a cleared auto-send when the echo check retries', async () => {
+    let finishSend = (): void => {};
+    vi.mocked(sendPrompt).mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finishSend = () => {
+            setInitialRef(undefined);
+            resolve();
+          };
+        }),
+    );
+    pollMock.pollUntilPromptAppearsInOutput.mockResolvedValue(false);
+    vi.useFakeTimers();
+    try {
+      vi.mocked(getAgentOutputTail).mockReturnValue('Claude Code\n❯ ');
+      storeMock.tasks = { 'task-1': { id: 'task-1', agentIds: ['agent-1'] } };
+      const textarea = mountReactiveInitial();
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(vi.mocked(sendPrompt)).toHaveBeenCalledTimes(1);
+      document.querySelector<HTMLButtonElement>('.prompt-clear-btn')?.click();
+      finishSend();
+      await vi.advanceTimersByTimeAsync(20_000);
+      expect(textarea?.value).toBe('');
+      expect(vi.mocked(sendPrompt)).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not let the auto-send effect refill a cleared fresh-task prompt', async () => {
+    vi.useFakeTimers();
+    try {
+      storeMock.tasks = { 'task-1': { id: 'task-1', agentIds: ['agent-1'] } };
+      const textarea = mountReactiveInitial();
+      document.querySelector<HTMLButtonElement>('.prompt-clear-btn')?.click();
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(textarea?.value).toBe('');
+      expect(vi.mocked(sendPrompt)).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
@@ -397,7 +584,7 @@ it('never auto-sends an ordinary parent completion summary or replaces its draft
     expect(container.querySelector('textarea')?.value).toBe('my draft');
     expect(container.textContent).not.toContain('Staged for auto-send');
     expect(container.textContent).not.toMatch(/Auto-sending|Queued|Sending when coordinator/);
-    expect(container.querySelector('textarea')?.style.padding).toBe('6px 36px 6px 10px');
+    expect(container.querySelector('textarea')?.style.padding).toBe('6px 64px 6px 10px');
   } finally {
     cleanup();
     vi.useRealTimers();

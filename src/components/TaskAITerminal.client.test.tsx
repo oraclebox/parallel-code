@@ -88,6 +88,8 @@ beforeEach(() => {
   });
   host = document.createElement('div');
   document.body.append(host);
+  setStore('projects', []);
+  setStore('focusedPanel', {});
 });
 
 afterEach(() => {
@@ -109,6 +111,64 @@ function mount() {
     host,
   );
 }
+
+it('reuses a history card into the terminal box and cancels a queued prompt', () => {
+  setStore('tasks', 'task', {
+    ...store.tasks.task,
+    promptHistory: [{ text: 'Old prompt', sentAt: 1 }],
+    initialPrompt: 'Queued first prompt',
+  });
+  const setText = vi.fn();
+  dispose = render(
+    () => (
+      <TaskAITerminal
+        task={store.tasks.task}
+        selectedAgentId="agent"
+        isActive
+        promptHandle={{ getText: () => '', setText }}
+      />
+    ),
+    host,
+  );
+
+  document.querySelector<HTMLButtonElement>('.prompt-history-trigger')?.click();
+  document.querySelector<HTMLButtonElement>('.prompt-history-card-reuse')?.click();
+
+  expect(setText).toHaveBeenCalledWith('Old prompt');
+  expect(store.tasks.task.initialPrompt).toBeUndefined();
+  expect(store.tasks.task.promptDraftActive).toBe(true);
+  expect(store.focusedPanel.task).toBe('prompt');
+});
+
+it('reuses a history card into the stored draft when no terminal handle is mounted', () => {
+  setStore('tasks', 'task', {
+    ...store.tasks.task,
+    promptHistory: [{ text: 'Old prompt', sentAt: 1 }],
+  });
+  mount();
+
+  document.querySelector<HTMLButtonElement>('.prompt-history-trigger')?.click();
+  document.querySelector<HTMLButtonElement>('.prompt-history-card-reuse')?.click();
+
+  expect(store.tasks.task.promptDraft).toBe('Old prompt');
+  expect(store.focusedPanel.task).toBe('prompt');
+});
+
+it('toggles a project bookmark from the history card', () => {
+  setStore('projects', [{ id: 'project', name: 'Repo', path: '/repo', color: '' }]);
+  setStore('tasks', 'task', {
+    ...store.tasks.task,
+    promptHistory: [{ text: 'Old prompt', sentAt: 1 }],
+  });
+  mount();
+
+  document.querySelector<HTMLButtonElement>('.prompt-history-trigger')?.click();
+  document.querySelector<HTMLButtonElement>('.prompt-history-card-bookmark')?.click();
+
+  expect(store.projects[0]?.promptBookmarks?.map((bookmark) => bookmark.text)).toEqual([
+    'Old prompt',
+  ]);
+});
 
 /** The confirmation that a view switch quits the CLI on the other side. */
 function switchConfirm() {

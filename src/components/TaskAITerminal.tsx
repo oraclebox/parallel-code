@@ -3,6 +3,8 @@ import type { TranscriptMarks } from '../investigation/transcript';
 
 import {
   store,
+  clearInitialPrompt,
+  getProject,
   markAgentExited,
   restartAgent,
   switchAgent,
@@ -21,6 +23,9 @@ import {
   showNotification,
   retryTeleportInRepo,
   toggleAITerminalLayout,
+  togglePromptBookmark,
+  setTaskPromptDraft,
+  setTaskPromptDraftActive,
 } from '../store/store';
 import { markDirty } from '../lib/terminalFitManager';
 import { forgetAgentOutput, isAgentAskingQuestion, isAgentSettled } from '../store/taskStatus';
@@ -323,7 +328,20 @@ export function TaskAITerminal(props: TaskAITerminalProps) {
               'min-width': '0',
             }}
           >
-            <PromptHistory task={props.task} emptyLabel={infoBarStatus().text} />
+            <PromptHistory
+              task={props.task}
+              emptyLabel={infoBarStatus().text}
+              bookmarks={getProject(props.task.projectId)?.promptBookmarks ?? []}
+              agentName={(agentId) => (agentId ? store.agents[agentId]?.def.name : undefined)}
+              onToggleBookmark={(text) => togglePromptBookmark(props.task.projectId, text)}
+              onReuse={(text) => {
+                clearInitialPrompt(props.task.id);
+                if (props.promptHandle) props.promptHandle.setText(text);
+                else setTaskPromptDraft(props.task.id, text);
+                setTaskPromptDraftActive(props.task.id, true);
+                setTaskFocusedPanel(props.task.id, 'prompt');
+              }}
+            />
             <div class="agent-header-controls">
               <div class="agent-header-tabs">
                 <For each={props.task.agentIds}>

@@ -47,7 +47,7 @@ import {
 import { taskUsesAgentChat } from '../store/agent-chat';
 import { isLandedTaskState } from '../store/landing';
 import { processAutoFireTick } from './autofire-tick';
-import { ArrowUpIcon } from './icons';
+import { ArrowUpIcon, CloseThinIcon } from './icons';
 import {
   resolveAutoSendVerifyOutcome,
   shouldAckInitialPromptDelivery,
@@ -812,6 +812,7 @@ export function PromptInput(props: PromptInputProps) {
   });
 
   let sendAbortController: AbortController | undefined;
+  let suppressRestore = false;
 
   async function handleSend(mode: 'manual' | 'auto' = 'manual') {
     if (sending() || suspended()) return;
@@ -843,7 +844,8 @@ export function PromptInput(props: PromptInputProps) {
     cleanupAutoSend?.();
     cleanupAutoSend = undefined;
 
-    const val = text().trim();
+    const draft = text();
+    const val = draft.trim();
     if (!val) {
       if (mode === 'auto') return;
       fireAndForget(IPC.WriteToAgent, { agentId: props.agentId, data: '\r' });
@@ -853,6 +855,7 @@ export function PromptInput(props: PromptInputProps) {
     }
     if (mode === 'manual') markTaskUserActivity(props.taskId);
 
+    suppressRestore = false;
     sendAbortController?.abort();
     sendAbortController = new AbortController();
     const { signal } = sendAbortController;
@@ -868,6 +871,12 @@ export function PromptInput(props: PromptInputProps) {
       // Snapshot tail before send for verification comparison.
       const preSendTail = getAgentOutputTail(props.agentId);
       await sendPrompt(props.taskId, props.agentId, val);
+
+      // The prompt is delivered; the echo check can take seconds, so empty the
+      // box now. Tell the host first so a queued initialPrompt is cancelled and
+      // cannot re-fill the box. Text typed since the submit stays.
+      props.onSend?.(val);
+      if (text() === draft) setText('');
 
       if (mode === 'auto') {
         // Wait for the prompt to appear in output before marking it delivered.
@@ -904,6 +913,7 @@ export function PromptInput(props: PromptInputProps) {
           } else if (outcome === 'giveup') {
             clearInitialPrompt(props.taskId);
           }
+          if (!suppressRestore && !text()) setText(draft);
           return;
         }
         // 'aborted' falls through: the box unmounted after `sendPrompt` had
@@ -939,10 +949,9 @@ export function PromptInput(props: PromptInputProps) {
           coordinatorTaskId: props.taskId,
         }).catch(() => {});
       }
-      props.onSend?.(val);
-      setText('');
     } catch (e) {
       console.error('Failed to send prompt:', e);
+      if (!suppressRestore && !text()) setText(draft);
       // The text stays in the field for a retry; without a notice the agent just looks like it ignored the prompt.
       const reason = errMessage(e).replace(
         /^Error invoking remote method '[^']+': (?:Error: )?/,
@@ -952,6 +961,14 @@ export function PromptInput(props: PromptInputProps) {
     } finally {
       setSending(false);
     }
+  }
+
+  function clearDraft() {
+    suppressRestore = true;
+    clearInitialPrompt(props.taskId);
+    setTaskPromptDraftActive(props.taskId, false);
+    setText('');
+    textareaRef?.focus();
   }
 
   const staged = () =>
@@ -1023,7 +1040,7 @@ export function PromptInput(props: PromptInputProps) {
             background: theme.bgInput,
             border: staged() ? `1px solid ${theme.accent}60` : `1px solid ${theme.border}`,
             'border-radius': 'var(--radius-lg)',
-            padding: '6px 36px 6px 10px',
+            padding: '6px 64px 6px 10px',
             color: theme.fg,
             'font-size': sf(13),
             'font-family': "'JetBrains Mono', monospace",
@@ -1032,6 +1049,16 @@ export function PromptInput(props: PromptInputProps) {
             opacity: questionActive() || suspended() ? '0.5' : '1',
           }}
         />
+        <button
+          type="button"
+          class="prompt-clear-btn"
+          aria-label="Clear message"
+          title="Clear message"
+          disabled={!text()}
+          onClick={clearDraft}
+        >
+          <CloseThinIcon size={12} />
+        </button>
         <button
           class="prompt-send-btn"
           type="button"

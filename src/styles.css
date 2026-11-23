@@ -3890,6 +3890,32 @@ html:is(
   overflow-wrap: anywhere;
 }
 
+.prompt-clear-btn {
+  position: absolute;
+  right: 36px;
+  bottom: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--fg-subtle);
+  cursor: pointer;
+}
+
+.prompt-clear-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--fg);
+}
+
+.prompt-clear-btn:disabled {
+  visibility: hidden;
+}
+
 .focusable-panel:focus-within::after,
 .focusable-panel[data-panel-focused='true']::after {
   content: '';

@@ -94,6 +94,7 @@ afterEach(() => {
   pollMock.pollUntilPromptAppearsInOutput.mockResolvedValue(true);
   vi.mocked(clearInitialPrompt).mockReset();
   vi.mocked(setInitialPrompt).mockReset();
+  vi.mocked(sendPrompt).mockClear();
 });
 
 async function waitFor(probe: () => boolean): Promise<void> {
@@ -338,6 +339,48 @@ describe('PromptInput delivery clearing', () => {
     fail();
     await waitFor(() => vi.mocked(showNotification).mock.calls.length > 0);
     expect(textarea.value).toBe('');
+  });
+  it('does not re-arm a cleared auto-send when the echo check retries', async () => {
+    let finishSend = (): void => {};
+    vi.mocked(sendPrompt).mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finishSend = () => {
+            setInitialRef(undefined);
+            resolve();
+          };
+        }),
+    );
+    pollMock.pollUntilPromptAppearsInOutput.mockResolvedValue(false);
+    vi.useFakeTimers();
+    try {
+      vi.mocked(getAgentOutputTail).mockReturnValue('Claude Code\n❯ ');
+      storeMock.tasks = { 'task-1': { id: 'task-1', agentIds: ['agent-1'] } };
+      const textarea = mountReactiveInitial();
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(vi.mocked(sendPrompt)).toHaveBeenCalledTimes(1);
+      document.querySelector<HTMLButtonElement>('.prompt-clear-btn')?.click();
+      finishSend();
+      await vi.advanceTimersByTimeAsync(20_000);
+      expect(textarea?.value).toBe('');
+      expect(vi.mocked(sendPrompt)).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not let the auto-send effect refill a cleared fresh-task prompt', async () => {
+    vi.useFakeTimers();
+    try {
+      storeMock.tasks = { 'task-1': { id: 'task-1', agentIds: ['agent-1'] } };
+      const textarea = mountReactiveInitial();
+      document.querySelector<HTMLButtonElement>('.prompt-clear-btn')?.click();
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(textarea?.value).toBe('');
+      expect(vi.mocked(sendPrompt)).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

@@ -907,7 +907,8 @@ export function PromptInput(props: PromptInputProps) {
           // in the field so the user can send manually.
           if (outcome === 'retry') {
             batch(() => {
-              if (initialPromptSnapshot) setInitialPrompt(props.taskId, initialPromptSnapshot);
+              if (!suppressRestore && initialPromptSnapshot)
+                setInitialPrompt(props.taskId, initialPromptSnapshot);
               setAutoSendRetry((n) => n + 1);
             });
           } else if (outcome === 'giveup') {

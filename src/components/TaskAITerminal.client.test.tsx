@@ -140,6 +140,20 @@ it('reuses a history card into the terminal box and cancels a queued prompt', ()
   expect(store.focusedPanel.task).toBe('prompt');
 });
 
+it('reuses a history card into the stored draft when no terminal handle is mounted', () => {
+  setStore('tasks', 'task', {
+    ...store.tasks.task,
+    promptHistory: [{ text: 'Old prompt', sentAt: 1 }],
+  });
+  mount();
+
+  document.querySelector<HTMLButtonElement>('.prompt-history-trigger')?.click();
+  document.querySelector<HTMLButtonElement>('.prompt-history-card-reuse')?.click();
+
+  expect(store.tasks.task.promptDraft).toBe('Old prompt');
+  expect(store.focusedPanel.task).toBe('prompt');
+});
+
 it('toggles a project bookmark from the history card', () => {
   setStore('projects', [{ id: 'project', name: 'Repo', path: '/repo', color: '' }]);
   setStore('tasks', 'task', {

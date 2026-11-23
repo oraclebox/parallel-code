@@ -128,7 +128,7 @@ it('keeps a rejected draft in the composer and exposes its focus to the app', as
   composer().focus();
   expect(document.activeElement).toBe(composer());
   await act(() => enter());
-  expect(send).toHaveBeenCalledWith('Keep my draft', []);
+  expect(send).toHaveBeenCalledWith('Keep my draft', [], 'Keep my draft');
   expect(composer().value).toBe('Keep my draft');
   expect(container.querySelector('[role="alert"]')?.textContent).toContain('Agent disconnected');
 });
@@ -264,8 +264,34 @@ it('queues during execution, then sends once after the agent becomes ready', asy
   expect(container.querySelector('.chat-queue')?.textContent).toContain('Keep my draft');
   await update({ state: { ...props.state, status: 'ready' } });
   expect(send).toHaveBeenCalledTimes(1);
-  expect(send).toHaveBeenCalledWith('Keep my draft', []);
+  expect(send).toHaveBeenCalledWith('Keep my draft', [], 'Keep my draft');
   expect(container.querySelector('.chat-queue')).toBeNull();
+});
+
+it('queues the raw draft for history when references are composed in', async () => {
+  await update({
+    onListFiles: async () => ['src/app.ts'],
+    state: { ...props.state, status: 'working' },
+  });
+  await pickFile('src/app.ts');
+  await act(() => button('Queue message').click());
+  await update({ state: { ...props.state, status: 'ready' } });
+  expect(send).toHaveBeenCalledWith(
+    'Keep my draft\n\nReferenced files:\n"src/app.ts"',
+    [],
+    'Keep my draft ',
+  );
+});
+
+it('edits a queued message back to its raw draft', async () => {
+  await update({
+    onListFiles: async () => ['src/app.ts'],
+    state: { ...props.state, status: 'working' },
+  });
+  await pickFile('src/app.ts');
+  await act(() => button('Queue message').click());
+  await act(() => button('Edit').click());
+  expect(props.draft).toBe('Keep my draft ');
 });
 
 /** A mid-turn reader scrolled 100px into a log where the bottom is 700px down. */
@@ -329,7 +355,7 @@ it.each(['a stopped turn', 'a failed send'] as const)(
     expect(container.querySelector('.chat-queue')?.textContent).not.toContain('Queue paused');
     await update({ state: { ...props.state, status: 'ready' } });
     expect(send).toHaveBeenCalledTimes(1);
-    expect(send).toHaveBeenCalledWith('Later follow-up', []);
+    expect(send).toHaveBeenCalledWith('Later follow-up', [], 'Later follow-up');
   },
 );
 
@@ -467,7 +493,11 @@ it('blocks Enter during interruption and sends the original prompt while preserv
   await act(() => release());
   await update({ state: { ...props.state, status: 'ready' } });
   expect(send).toHaveBeenCalledTimes(1);
-  expect(send).toHaveBeenCalledWith('Keep my draft\n\nReferenced files:\n"src/app.ts"', []);
+  expect(send).toHaveBeenCalledWith(
+    'Keep my draft\n\nReferenced files:\n"src/app.ts"',
+    [],
+    'Keep my draft ',
+  );
   expect(props.draft).toBe('Still writing this');
   expect(container.querySelector('.chat-queue')).toBeNull();
 });
@@ -706,7 +736,11 @@ it('allows file references to be removed and sends selected paths as visible con
   expect(document.activeElement).toBe(composer());
   expect(composer().selectionStart).toBe('Keep my draft '.length);
   await act(() => button('Send message').click());
-  expect(send).toHaveBeenCalledWith('Keep my draft\n\nReferenced files:\n"src/app.ts"', []);
+  expect(send).toHaveBeenCalledWith(
+    'Keep my draft\n\nReferenced files:\n"src/app.ts"',
+    [],
+    'Keep my draft ',
+  );
   expect(container.querySelector('.chat-context-chips')?.textContent).not.toContain('src/app.ts');
 });
 
@@ -765,7 +799,7 @@ it('completes slash commands and skills like a terminal', async () => {
   expect(props.draft).toBe('/compact ');
   expect(send).not.toHaveBeenCalled();
   await act(() => enter());
-  expect(send).toHaveBeenCalledWith('/compact', []);
+  expect(send).toHaveBeenCalledWith('/compact', [], '/compact ');
 
   // A plugin skill matches by its own name as well as by the plugin's.
   await update({ draft: '' });
@@ -795,7 +829,7 @@ it('completes Codex skills with dollar syntax from either trigger', async () => 
   expect(props.draft).toBe('$review ');
   expect(send).not.toHaveBeenCalled();
   await act(() => enter());
-  expect(send).toHaveBeenLastCalledWith('$review', []);
+  expect(send).toHaveBeenLastCalledWith('$review', [], '$review ');
   await update({ draft: '' });
   await type('$review');
   await act(() => enter());
@@ -808,13 +842,13 @@ it('sends a fully typed command and leaves a dismissed or unmatched slash alone'
   // The exact name goes first, even though the agent lists review-pr before it.
   expect(suggestions()[0]).toEqual({ text: '/review <pr>Review the diff', selected: true });
   await act(() => enter());
-  expect(send).toHaveBeenLastCalledWith('/review', []);
+  expect(send).toHaveBeenLastCalledWith('/review', [], '/review');
   // A name typed in other case is corrected rather than sent as the agent might not know it.
   await update({ draft: '' });
   await type('/Compact');
   await act(() => enter());
   expect(props.draft).toBe('/compact ');
-  expect(send).toHaveBeenLastCalledWith('/review', []);
+  expect(send).toHaveBeenLastCalledWith('/review', [], '/review');
 
   await update({ draft: '' });
   await type('/re');
@@ -827,7 +861,7 @@ it('sends a fully typed command and leaves a dismissed or unmatched slash alone'
   expect(suggestions()).toHaveLength(2);
   await act(() => press('Escape'));
   await act(() => enter());
-  expect(send).toHaveBeenLastCalledWith('/rev', []);
+  expect(send).toHaveBeenLastCalledWith('/rev', [], '/rev');
 
   await update({ draft: '' });
   await type('/src/app.ts');
@@ -1473,7 +1507,7 @@ it('sends a ! message to the agent when the chat cannot run commands', async () 
     false,
   );
   await act(() => enter());
-  expect(send).toHaveBeenCalledWith('!important', []);
+  expect(send).toHaveBeenCalledWith('!important', [], '!important');
 });
 
 it('shows a command the user ran with its output, apart from agent activity', async () => {

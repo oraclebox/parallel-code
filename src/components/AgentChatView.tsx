@@ -231,10 +231,14 @@ export function AgentChatView(props: {
       }),
     onReloadModels: () => invoke(IPC.AgentChat, { action: 'models', agentId: props.agentId }),
     onDraft: (text) => setTaskPromptDraft(props.task.id, text),
-    onSend: async (text, images) => {
-      await sendPrompt(props.task.id, props.agentId, text, { images });
+    onSend: async (text, images, draftText) => {
+      await sendPrompt(props.task.id, props.agentId, text, {
+        images,
+        historyText: draftText,
+      });
       if (props.task.initialPrompt) clearInitialPrompt(props.task.id);
-      if (props.task.promptDraft?.trim() === text) setTaskPromptDraft(props.task.id, '');
+      const draft = draftText ?? text;
+      if (props.task.promptDraft?.trim() === draft.trim()) setTaskPromptDraft(props.task.id, '');
     },
     onStop: () => invoke(IPC.AgentChat, { action: 'interrupt', agentId: props.agentId }),
     onRespond: (request, decision, answers) =>

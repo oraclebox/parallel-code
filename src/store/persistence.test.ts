@@ -180,6 +180,40 @@ describe('resolveIncomingPanelUserSize', () => {
   });
 });
 
+describe('loadState project prompt bookmarks', () => {
+  it('restores valid prompt bookmarks and drops malformed ones', async () => {
+    mockInvoke.mockResolvedValueOnce(
+      JSON.stringify({
+        projects: [
+          {
+            id: 'project-1',
+            name: 'Repo',
+            path: '/repo',
+            color: 'hsl(0, 70%, 75%)',
+            promptBookmarks: [
+              { text: 'Keep this', savedAt: 5 },
+              { text: 'Keep this', savedAt: 6 },
+              { text: '' },
+              { nope: true },
+            ],
+          },
+        ],
+        lastProjectId: 'project-1',
+        lastAgentId: null,
+        taskOrder: [],
+        collapsedTaskOrder: [],
+        tasks: {},
+        activeTaskId: null,
+        sidebarVisible: true,
+      }),
+    );
+
+    await loadState();
+
+    expect(store.projects[0]?.promptBookmarks).toEqual([{ text: 'Keep this', savedAt: 5 }]);
+  });
+});
+
 describe('loadState agent definition migrations', () => {
   it('migrates persisted Codex --full-auto skip-permissions args', async () => {
     const restored = await loadPersistedAgent(

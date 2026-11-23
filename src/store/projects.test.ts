@@ -28,6 +28,7 @@ import {
   relinkProject,
   removeProject,
   pickAndAddProject,
+  togglePromptBookmark,
   updateProject,
   updateProjectCoordination,
 } from './projects';
@@ -297,6 +298,30 @@ describe('updateProject', () => {
 
     updateProject('p1', { icon: undefined });
     expect(store.projects[0]?.icon).toBeUndefined();
+  });
+
+  it('toggles a project prompt bookmark by exact text', () => {
+    setStore('projects', [{ id: 'p1', name: 'Project', path: '/repo', color: '' }]);
+
+    togglePromptBookmark('p1', '  Fix the tests  ');
+    expect(store.projects[0]?.promptBookmarks?.map((bookmark) => bookmark.text)).toEqual([
+      '  Fix the tests  ',
+    ]);
+
+    togglePromptBookmark('p1', '  Fix the tests  ');
+    expect(store.projects[0]?.promptBookmarks).toBeUndefined();
+
+    togglePromptBookmark('missing', 'ignored');
+    togglePromptBookmark('p1', '   ');
+    expect(store.projects[0]?.promptBookmarks).toBeUndefined();
+  });
+
+  it('keeps only the newest 50 prompt bookmarks', () => {
+    setStore('projects', [{ id: 'p1', name: 'Project', path: '/repo', color: '' }]);
+    for (let index = 0; index < 55; index++) togglePromptBookmark('p1', `prompt ${index}`);
+    expect(store.projects[0]?.promptBookmarks).toHaveLength(50);
+    expect(store.projects[0]?.promptBookmarks?.[0]?.text).toBe('prompt 5');
+    expect(store.projects[0]?.promptBookmarks?.at(-1)?.text).toBe('prompt 54');
   });
 
   it('hands saved or cleared worktree settings to the main process', () => {

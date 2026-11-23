@@ -100,6 +100,12 @@ export interface TerminalBookmark {
   command: string;
 }
 
+export interface PromptBookmark {
+  /** The exact prompt text; also its identity, so the same text bookmarks once. */
+  text: string;
+  savedAt: number;
+}
+
 /** How a saved include-list entry reaches a new worktree. */
 export type WorktreeIncludeMode = 'symlink' | 'copy';
 
@@ -148,6 +154,8 @@ export interface Project {
    *  user first picks; empty means the reviewer alone. */
   reviewChecks?: string[];
   terminalBookmarks?: TerminalBookmark[];
+  /** Prompts the user pinned for reuse from any task in this project. */
+  promptBookmarks?: PromptBookmark[];
   /** Commands run in a visible terminal of each new worktree task, right
    *  after the worktree exists. App state, for the same reason as
    *  `verifyCommand`. Unset means no setup step at all. */

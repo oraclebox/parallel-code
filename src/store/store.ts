@@ -5,6 +5,7 @@ export {
   addProject,
   removeProject,
   updateProject,
+  togglePromptBookmark,
   getProjectBaseBranch,
   getProjectPath,
   getProjectBranchPrefix,

@@ -47,7 +47,7 @@ import {
   clampIndependentTasksPerCreator,
   DEFAULT_INDEPENDENT_TASKS_PER_CREATOR,
 } from '../lib/coordinator-limits';
-import { MAX_PROMPT_HISTORY } from '../lib/prompt-history';
+import { MAX_PROMPT_HISTORY, restorePromptBookmarks } from '../lib/prompt-history';
 import { isFeatureHintId } from '../lib/feature-hints';
 import { isShellLayoutMode } from '../lib/shellLayout';
 import { normalizeReasoningProfile } from '../investigation/profiles';
@@ -936,6 +936,7 @@ export async function loadState(): Promise<void> {
     delete (p as unknown as Record<string, unknown>).evidenceModel;
     p.verifyAutoRun = p.verifyAutoRun === false ? false : undefined;
     p.reviewChecks = restoreReviewChecks(p.reviewChecks);
+    p.promptBookmarks = restorePromptBookmarks(p.promptBookmarks);
     p.superProductivityProjectId = isValidSpId(p.superProductivityProjectId)
       ? p.superProductivityProjectId
       : undefined;

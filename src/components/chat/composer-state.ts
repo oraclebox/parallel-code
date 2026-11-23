@@ -315,6 +315,11 @@ export function createComposer(
     return true;
   }
 
+  /** Empties the draft, for the Clear button beside Send. */
+  function clear() {
+    props.onDraft('');
+  }
+
   return {
     /** Shell commands can run here at all. */
     canRunShell: () => !!props.onShell,
@@ -336,6 +341,7 @@ export function createComposer(
     error,
     setError,
     send,
+    clear,
     stop,
     addImages,
     addDropped,

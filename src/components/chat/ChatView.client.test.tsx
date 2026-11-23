@@ -744,6 +744,16 @@ it('allows file references to be removed and sends selected paths as visible con
   expect(container.querySelector('.chat-context-chips')?.textContent).not.toContain('src/app.ts');
 });
 
+it('clears the chat draft from the clear button and hides it when empty', async () => {
+  await update({ draft: 'Keep my draft' });
+  const clear = button('Clear message');
+  expect(clear.disabled).toBe(false);
+  await act(() => clear.click());
+  expect(props.draft).toBe('');
+  expect(document.activeElement).toBe(composer());
+  expect(clear.disabled).toBe(true);
+});
+
 it('keeps a typed @ when the file search closes without a choice', async () => {
   await update({ onListFiles: async () => ['src/app.ts'] });
   await type('a@');

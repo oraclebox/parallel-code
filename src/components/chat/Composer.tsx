@@ -11,7 +11,14 @@ import { shellCommand, type Composer as ComposerState } from './composer-state';
 import { ModelPicker, PermissionPicker } from './ModelPicker';
 import { Progress } from './Progress';
 import { RequestCard, type RespondToRequest } from './RequestCard';
-import { ArrowUpAltIcon, PencilIcon, SendIcon, StopSmallIcon, SyncIcon } from '../icons';
+import {
+  ArrowUpAltIcon,
+  CloseThinIcon,
+  PencilIcon,
+  SendIcon,
+  StopSmallIcon,
+  SyncIcon,
+} from '../icons';
 
 export interface ChatHistoryEntry {
   title: string;
@@ -341,6 +348,20 @@ export function Composer(props: ComposerProps) {
             <Show when={moreItems().length}>
               <MoreMenu items={moreItems()} />
             </Show>
+            <button
+              type="button"
+              class="chat-clear"
+              aria-label="Clear message"
+              title="Clear message"
+              disabled={!props.draft.trim()}
+              onClick={() => {
+                mention.close();
+                c.clear();
+                props.focus();
+              }}
+            >
+              <CloseThinIcon size={14} />
+            </button>
             {/* Keep Stop available when a follow-up is ready to queue. */}
             <Show when={!working() || hasContent()}>
               <button
